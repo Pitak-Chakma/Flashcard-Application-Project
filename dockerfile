@@ -1,18 +1,11 @@
-# Use official PHP image with Apache
-FROM php:8.2-apache
+FROM php:8.1-apache
 
-# Install mysqli extension
-RUN docker-php-ext-install mysqli
+RUN docker-php-ext-install pdo pdo_mysql
 
-# Enable Apache mod_rewrite
-RUN a2enmod rewrite
+COPY ./public /var/www/html
+COPY ./src /var/www/src
 
-# Copy application files
-COPY public/ /var/www/html/
-COPY config.php /var/www/html/
+RUN chown -R www-data:www-data /var/www
+RUN chmod -R 755 /var/www
 
-# Set environment variables
-ENV APACHE_DOCUMENT_ROOT /var/www/html
-RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf
-
-
+EXPOSE 80
