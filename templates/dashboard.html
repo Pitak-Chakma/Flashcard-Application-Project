@@ -1,52 +1,224 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Dashboard - Flashcard App</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-</head>
-<body>
-    <div class="container dashboard">
-        <header>
-            <h1>Welcome, {{ username }}!</h1>
-            <a href="{{ url_for('logout') }}" class="logout-btn">Logout</a>
-        </header>
+{% extends "layout.html" %}
 
-        <section class="create-card">
-            <h2>Create a Flashcard</h2>
-            <form method="POST" action="{{ url_for('dashboard') }}">
-                <div class="form-group">
-                    <label for="front">Front</label>
-                    <input type="text" id="front" name="front" placeholder="Enter front text" required>
-                </div>
-                <div class="form-group">
-                    <label for="back">Back</label>
-                    <textarea id="back" name="back" placeholder="Enter back text" required></textarea>
-                </div>
-                <div class="form-group">
-                    <label for="tags">Tags (comma-separated)</label>
-                    <input type="text" id="tags" name="tags" placeholder="e.g., math, science">
-                </div>
-                <button type="submit">Add Flashcard</button>
-            </form>
-        </section>
+{% block title %}Dashboard{% endblock %}
 
-        <section class="flashcard-list">
-            {% for flashcard in flashcards %}
-                <div class="flashcard">
-                    <form method="POST" action="{{ url_for('edit_flashcard', flashcard_id=flashcard[0]) }}">
-                        <h3><input type="text" name="front" value="{{ flashcard[1] }}" required></h3>
-                        <p><textarea name="back" required>{{ flashcard[2] }}</textarea></p>
-                        <div class="tags">
-                            <input type="text" name="tags" value="{{ flashcard[3] }}" placeholder="Tags">
-                        </div>
-                        <div class="flashcard-actions">
-                            <button type="submit" class="edit-btn">Save</button>
-                            <a href="{{ url_for('delete_flashcard', flashcard_id=flashcard[0]) }}" class="delete-btn">Delete</a>
-                        </div>
-                    </form>
+{% block content %}
+<section class="dashboard">
+    <div class="section-header">
+        <h1>Welcome, {{ session['username'] }}!</h1>
+        <p>Your learning journey at a glance.</p>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="summary-cards">
+        <div class="card">
+            <h2>Total Flashcards</h2>
+            <p>{{ stats.total_cards }}</p>
+        </div>
+        <div class="card">
+            <h2>Review Sessions</h2>
+            <p>{{ stats.total_attempts }}</p>
+        </div>
+        <div class="card">
+            <h2>Success Rate</h2>
+            <p>{{ stats.success_rate }}%</p>
+        </div>
+        <div class="card">
+            <h2>Due for Review</h2>
+            <p>{{ stats.due_cards }}</p>
+        </div>
+    </div>
+
+    <div class="quick-actions">
+        <h2>Quick Actions</h2>
+        <div class="actions-list">
+            <a href="{{ url_for('create_tag') }}" class="btn btn-primary">
+                <i class="fas fa-tag"></i> Create New Tag
+            </a>
+        </div>
+    </div>
+    
+    <!-- Progress Chart -->
+    <div class="progress-section">
+        <h2>Your Learning Progress</h2>
+        <canvas id="progress-chart" 
+                data-reviews="{{ stats.daily_reviews|tojson }}" 
+                data-success="{{ stats.daily_success_rates|tojson }}"></canvas>
+    </div>
+
+    <!-- Tags and Flashcards -->
+    <div class="tags-section">
+        <h2>Your Tags</h2>
+        <div class="tags-list">
+            {% for tag in tags %}
+                <div class="tag-card">
+                    <h3>{{ tag.name }}</h3>
+                    <p>{{ tag.card_count }} Flashcards</p>
+                    <a href="{{ url_for('view_tag', tag_id=tag.id) }}" class="btn btn-primary">View Flashcards</a>
                 </div>
             {% endfor %}
-        </section>
+        </div>
     </div>
-</body>
-</html>
+
+    <!-- Quick Actions -->
+    <div class="quick-actions">
+        <h2>Quick Actions</h2>
+        <div class="actions-list">
+            <a href="{{ url_for('create_flashcard') }}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Create New Flashcard
+            </a>
+            <a href="{{ url_for('test_flashcards', tag_id=tags[0].id if tags else 0) }}" class="btn btn-secondary">
+                <i class="fas fa-random"></i> Start Random Test
+            </a>
+            <a href="{{ url_for('view_stats') }}" class="btn btn-outline">
+                <i class="fas fa-chart-line"></i> View Detailed Stats
+            </a>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{{ url_for('static', filename='js/spaced.js') }}"></script>
+<style>
+/* Additional styles for the dashboard */
+.dashboard {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+.section-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.section-header h1 {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+}
+
+.section-header p {
+    color: var(--text-light);
+    font-size: 1rem;
+}
+
+.summary-cards {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.card {
+    background-color: var(--card-bg);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 1.5rem;
+    text-align: center;
+}
+
+.card h2 {
+    font-size: 1.25rem;
+    margin-bottom: 0.5rem;
+    color: var(--primary-color);
+}
+
+.card p {
+    font-size: 2rem;
+    font-weight: bold;
+    color: var(--text-dark);
+}
+
+.progress-section {
+    margin-bottom: 2rem;
+}
+
+.progress-section h2 {
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+    text-align: center;
+}
+
+.tags-section {
+    margin-bottom: 2rem;
+}
+
+.tags-section h2 {
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+    text-align: center;
+}
+
+.tags-list {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+}
+
+.tag-card {
+    background-color: var(--card-bg);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 1.5rem;
+    text-align: center;
+}
+
+.tag-card h3 {
+    font-size: 1.25rem;
+    margin-bottom: 0.5rem;
+    color: var(--primary-color);
+}
+
+.tag-card p {
+    font-size: 1rem;
+    margin-bottom: 1rem;
+    color: var(--text-light);
+}
+
+.quick-actions {
+    text-align: center;
+}
+
+.quick-actions h2 {
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.actions-list {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+}
+
+.actions-list a {
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+    border-radius: var(--radius);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.actions-list a i {
+    font-size: 1.25rem;
+}
+
+.actions-list .btn-primary {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.actions-list .btn-secondary {
+    background-color: var(--secondary-color);
+    color: white;
+}
+
+.actions-list .btn-outline {
+    border: 1px solid var(--primary-color);
+    color: var(--primary-color);
+}
+</style>
+{% endblock %}
