@@ -103,4 +103,31 @@ def edit_flashcard(flashcard_id):
     front = request.form['front']
     back = request.form['back']
     tags = request.form['tags']
-    c.execute('UPDATE
+    c.execute('UPDATE flashcards SET front = ?, back = ?, tags = ? WHERE id = ? AND user_id = ?', 
+              (front, back, tags, flashcard_id, session['user_id']))
+    conn.commit()
+    conn.close()
+    return redirect(url_for('dashboard'))
+
+# Delete flashcard route
+@app.route('/delete/<int:flashcard_id>')
+def delete_flashcard(flashcard_id):
+    if 'user_id' not in session:
+        return redirect(url_for('signin'))
+    
+    conn = sqlite3.connect('users.db')
+    c = conn.cursor()
+    c.execute('DELETE FROM flashcards WHERE id = ? AND user_id = ?', (flashcard_id, session['user_id']))
+    conn.commit()
+    conn.close()
+    return redirect(url_for('dashboard'))
+
+# Logout route
+@app.route('/logout')
+def logout():
+    session.pop('user_id', None)
+    return redirect(url_for('signin'))
+
+if __name__ == '__main__':
+    init_db()
+    app.run(debug=True)
