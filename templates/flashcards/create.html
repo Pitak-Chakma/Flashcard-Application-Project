@@ -1,0 +1,188 @@
+{% extends "layout.html" %}
+
+{% block title %}Create Flashcard{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/flashcards.css') }}">
+{% endblock %}
+
+{% block content %}
+<section class="create-flashcard">
+    <div class="section-header">
+        <h1>Create New Flashcard</h1>
+        <a href="{{ url_for('dashboard') }}" class="btn btn-outline">
+            <i class="fas fa-arrow-left"></i> Back to Dashboard
+        </a>
+    </div>
+    
+    <div class="flashcard-form-container">
+        <form action="{{ url_for('create_flashcard') }}" method="post" id="flashcardForm">
+            <div class="form-group">
+                <label for="tag_id">Select Tag</label>
+                <select id="tag_id" name="tag_id" required>
+                    <option value="">-- Select a Tag --</option>
+                    {% for tag in tags %}
+                        <option value="{{ tag.id }}">{{ tag.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="question">Question</label>
+                <textarea id="question" name="question" required></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label>Options</label>
+                <div id="options-container">
+                    <div class="option-row">
+                        <input type="text" name="options[]" required placeholder="Option 1">
+                        <button type="button" class="btn btn-sm btn-outline option-delete" disabled>
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                    <div class="option-row">
+                        <input type="text" name="options[]" required placeholder="Option 2">
+                        <button type="button" class="btn btn-sm btn-outline option-delete" disabled>
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <button type="button" id="add-option" class="btn btn-sm btn-outline">
+                    <i class="fas fa-plus"></i> Add Option
+                </button>
+            </div>
+            
+            <div class="form-group">
+                <label for="correct_answer">Correct Answer</label>
+                <input type="text" id="correct_answer" name="correct_answer" required>
+            </div>
+            
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" name="is_public">
+                    <span>Make this flashcard public</span>
+                </label>
+            </div>
+            
+            <div class="form-actions">
+                <button type="button" id="preview-btn" class="btn btn-outline">Preview</button>
+                <button type="submit" class="btn btn-primary">Create Flashcard</button>
+            </div>
+        </form>
+    </div>
+    
+    <div id="flashcard-preview" class="flashcard-preview-container" style="display: none;">
+        <h2>Flashcard Preview</h2>
+        
+        <div class="flashcard-container">
+            <div class="flashcard">
+                <div class="flashcard-front">
+                    <p id="preview-question"></p>
+                </div>
+                <div class="flashcard-back">
+                    <div id="preview-options"></div>
+                    <div class="correct-answer">
+                        <p>Correct Answer: <span id="preview-answer"></span></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <button type="button" id="close-preview" class="btn btn-outline">
+            Close Preview
+        </button>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Add more options
+    const optionsContainer = document.getElementById('options-container');
+    const addOptionBtn = document.getElementById('add-option');
+    
+    addOptionBtn.addEventListener('click', function() {
+        const optionCount = optionsContainer.querySelectorAll('.option-row').length;
+        const newRow = document.createElement('div');
+        newRow.className = 'option-row';
+        newRow.innerHTML = `
+            <input type="text" name="options[]" required placeholder="Option ${optionCount + 1}">
+            <button type="button" class="btn btn-sm btn-outline option-delete">
+                <i class="fas fa-trash"></i>
+            </button>
+        `;
+        optionsContainer.appendChild(newRow);
+        
+        // Enable delete buttons if we have more than 2 options
+        if (optionCount >= 2) {
+            const deleteButtons = document.querySelectorAll('.option-delete');
+            deleteButtons.forEach(btn => btn.removeAttribute('disabled'));
+        }
+    });
+    
+    // Delete options
+    optionsContainer.addEventListener('click', function(e) {
+        if (e.target.closest('.option-delete')) {
+            const optionCount = optionsContainer.querySelectorAll('.option-row').length;
+            
+            // Don't allow fewer than 2 options
+            if (optionCount <= 2) {
+                return;
+            }
+            
+            const row = e.target.closest('.option-row');
+            row.remove();
+            
+            // Disable delete buttons if we have only 2 options
+            if (optionCount <= 3) {
+                const deleteButtons = document.querySelectorAll('.option-delete');
+                deleteButtons.forEach(btn => btn.setAttribute('disabled', true));
+            }
+            
+            // Renumber placeholders
+            const inputs = optionsContainer.querySelectorAll('input');
+            inputs.forEach((input, index) => {
+                input.placeholder = `Option ${index + 1}`;
+            });
+        }
+    });
+    
+    // Preview functionality
+    const previewBtn = document.getElementById('preview-btn');
+    const closePreviewBtn = document.getElementById('close-preview');
+    const flashcardPreview = document.getElementById('flashcard-preview');
+    const previewQuestion = document.getElementById('preview-question');
+    const previewOptions = document.getElementById('preview-options');
+    const previewAnswer = document.getElementById('preview-answer');
+    
+    previewBtn.addEventListener('click', function() {
+        const question = document.getElementById('question').value;
+        const options = Array.from(document.querySelectorAll('input[name="options[]"]')).map(input => input.value);
+        const correctAnswer = document.getElementById('correct_answer').value;
+        
+        if (!question || options.some(opt => !opt) || !correctAnswer) {
+            alert('Please fill in all fields to preview');
+            return;
+        }
+        
+        previewQuestion.textContent = question;
+        
+        previewOptions.innerHTML = '';
+        options.forEach(option => {
+            const optionEl = document.createElement('div');
+            optionEl.className = 'option';
+            optionEl.textContent = option;
+            previewOptions.appendChild(optionEl);
+        });
+        
+        previewAnswer.textContent = correctAnswer;
+        flashcardPreview.style.display = 'block';
+    });
+    
+    closePreviewBtn.addEventListener('click', function() {
+        flashcardPreview.style.display = 'none';
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,74 @@
+{% extends "layout.html" %}
+
+{% block title %}Create Tag{% endblock %}
+
+{% block content %}
+<div class="create-tag-container">
+    <h1>Create a New Tag</h1>
+    <form method="POST" action="{{ url_for('create_tag') }}">
+        <div class="form-group">
+            <label for="tag_name">Tag Name</label>
+            <input type="text" id="tag_name" name="tag_name" required>
+        </div>
+
+        <div class="form-group">
+            <label for="is_public">
+                <input type="checkbox" id="is_public" name="is_public">
+                Make this tag public
+            </label>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Create Tag</button>
+    </form>
+</div>
+{% endblock %}
+
+<style>
+    .create-tag-container {
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 2rem;
+        background-color: #f9f9f9;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    
+    .create-tag-container h1 {
+        text-align: center;
+        margin-bottom: 1.5rem;
+    }
+    
+    .form-group {
+        margin-bottom: 1rem;
+    }
+    
+    .form-group label {
+        display: block;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+    }
+    
+    .form-group input {
+        width: 100%;
+        padding: 0.5rem;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+    }
+    
+    button {
+        display: block;
+        width: 100%;
+        padding: 0.75rem;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        font-size: 1rem;
+        cursor: pointer;
+    }
+    
+    button:hover {
+        background-color: #0056b3;
+    }
+    </style>
+    
