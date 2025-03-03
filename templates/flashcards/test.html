@@ -1,0 +1,72 @@
+{% extends "layout.html" %}
+
+{% block title %}Test Flashcard{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/flashcards.css') }}">
+{% endblock %}
+
+{% block content %}
+<section class="test-flashcard">
+    <div class="section-header">
+        <h1>Flashcard Test</h1>
+        <div class="header-actions">
+            <a href="{{ url_for('view_tag', tag_id=tag_id) }}" class="btn btn-outline">
+                <i class="fas fa-list"></i> View All
+            </a>
+            <a href="{{ url_for('test_flashcards', tag_id=tag_id) }}" class="btn btn-primary">
+                <i class="fas fa-random"></i> Next Random
+            </a>
+        </div>
+    </div>
+    
+    <div class="flashcard-test-container">
+        <div class="flashcard">
+            <div class="flashcard-front active">
+                <p>{{ card.question }}</p>
+                <button id="flip-btn" class="btn btn-primary">Show Answer</button>
+            </div>
+            
+            <div class="flashcard-back">
+                <form action="{{ url_for('answer_flashcard') }}" method="post" id="answerForm">
+                    <input type="hidden" name="flashcard_id" value="{{ card.id }}">
+                    <input type="hidden" name="tag_id" value="{{ tag_id }}">
+                    <input type="hidden" name="correct_answer" value="{{ card.correct_answer }}">
+                    
+                    <div class="options-container">
+                        {% for option in card.options %}
+                            <div class="option">
+                                <label class="option-label">
+                                    <input type="radio" name="selected_answer" value="{{ option }}" required>
+                                    <span class="option-text">{{ option }}</span>
+                                </label>
+                            </div>
+                        {% endfor %}
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">Submit Answer</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="spaced-repetition-info">
+        <h3>Spaced Repetition</h3>
+        <p>This flashcard will appear again based on how well you remember it. Correct answers will increase the time between reviews.</p>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Flip flashcard functionality
+    const flipBtn = document.getElementById('flip-btn');
+    const flashcardFront = document.querySelector('.flashcard-front');
+    const flashcardBack = document.querySelector('.flashcard-back');
+    
+    flipBtn.addEventListener('click', function() {
+        flashcardFront.classList.remove('active');
+        flashcardBack.classList.add('active');
+    });
+</script>
+{% endblock %}
