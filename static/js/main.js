@@ -1,27 +1,52 @@
-// Flash message handling
+// General utility functions
+
+// Toggle password visibility
+function togglePasswordVisibility(inputId, iconId) {
+    const passwordInput = document.getElementById(inputId);
+    const icon = document.getElementById(iconId);
+    
+    if (passwordInput.type === 'password') {
+        passwordInput.type = 'text';
+        icon.classList.remove('fa-eye');
+        icon.classList.add('fa-eye-slash');
+    } else {
+        passwordInput.type = 'password';
+        icon.classList.remove('fa-eye-slash');
+        icon.classList.add('fa-eye');
+    }
+}
+
+// Confirm action with a modal
+function confirmAction(message, actionCallback) {
+    const confirmed = confirm(message);
+    if (confirmed) {
+        actionCallback();
+    }
+}
+
+// Initialize tooltips and popovers
 document.addEventListener('DOMContentLoaded', function() {
-    // Auto-dismiss flash messages after 5 seconds
-    const flashMessages = document.querySelectorAll('.flash');
-    flashMessages.forEach(message => {
-        setTimeout(() => {
-            message.style.opacity = '0';
-            message.style.transform = 'translateY(-10px)';
-            setTimeout(() => {
-                message.remove();
-            }, 300);
-        }, 5000);
+    // Enable Bootstrap tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function(tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
     });
     
-    // Close button for flash messages
-    const closeButtons = document.querySelectorAll('.flash .close-btn');
-    closeButtons.forEach(button => {
-        button.addEventListener('click', function() {
-            const message = button.parentElement;
-            message.style.opacity = '0';
-            message.style.transform = 'translateY(-10px)';
-            setTimeout(() => {
-                message.remove();
-            }, 300);
-        });
+    // Enable Bootstrap popovers
+    const popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
+    popoverTriggerList.map(function(popoverTriggerEl) {
+        return new bootstrap.Popover(popoverTriggerEl);
     });
+});
+
+// Flash message timeout
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-dismiss flash messages after 5 seconds
+    setTimeout(function() {
+        const alerts = document.querySelectorAll('.alert');
+        alerts.forEach(function(alert) {
+            const bsAlert = new bootstrap.Alert(alert);
+            bsAlert.close();
+        });
+    }, 5000);
 });

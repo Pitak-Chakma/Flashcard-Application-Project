@@ -1,20 +1,27 @@
-# Use an official Python runtime as the base image
+# Use Python 3.9 as the base image
 FROM python:3.9-slim
 
-# Set the working directory in the container
+# Set working directory
 WORKDIR /app
 
-# Copy the requirements file into the container
+# Copy requirements first (for better caching)
 COPY requirements.txt .
 
-# Install the dependencies
+# Install dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the rest of the application code
+# Copy the rest of the application
 COPY . .
 
-# Expose the port the app runs on
-EXPOSE 8000
+# Create necessary directories
+RUN mkdir -p uploads/profile_pics
 
-# Define the command to run the application
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "app:app"]
+# Expose port 5000
+EXPOSE 5000
+
+# Set environment variables
+ENV FLASK_APP=app.py
+ENV FLASK_RUN_HOST=0.0.0.0
+
+# Run the application
+CMD ["flask", "run"]

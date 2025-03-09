@@ -1,15 +1,8 @@
 import os
 
 class Config:
-    # Secret key for session management
-    SECRET_KEY = os.environ.get('SECRET_KEY') or 'default-secret-key-change-in-production'
-    
-    # Database configuration
-    DATABASE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'flashcards.db')
-    
-    # Upload folder for any user uploads
-    UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'uploads')
-    
-    # Application settings
-    DEBUG = True
-    TESTING = False
+    SECRET_KEY = 'your-secret-key'  # In production, use a secure random key
+    SQLALCHEMY_DATABASE_URI = 'sqlite:///flashcards.db'
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+    UPLOAD_FOLDER = os.path.join('uploads', 'profile_pics')
+    MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max upload

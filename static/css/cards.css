@@ -1,0 +1,140 @@
+/* Flashcard Styles */
+
+.flashcard {
+    position: relative;
+    height: 200px;
+    perspective: 1000px;
+    cursor: pointer;
+}
+
+.flashcard-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    text-align: center;
+    transition: transform 0.6s;
+    transform-style: preserve-3d;
+}
+
+.flashcard.flipped .flashcard-inner {
+    transform: rotateY(180deg);
+}
+
+.flashcard-front, .flashcard-back {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 15px;
+    overflow: auto;
+}
+
+.flashcard-front {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+}
+
+.flashcard-back {
+    background-color: #e9ecef;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    transform: rotateY(180deg);
+}
+
+.card-tag {
+    display: inline-block;
+    background-color: #e9ecef;
+    color: #495057;
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 10rem;
+    margin-right: 0.25rem;
+    margin-bottom: 0.25rem;
+    white-space: nowrap;
+}
+
+/* Study mode styles */
+
+.study-card {
+    min-height: 400px;
+}
+
+.difficulty-btn {
+    padding-top: 12px;
+    padding-bottom: 12px;
+    font-weight: 500;
+}
+
+.difficulty-btn:hover {
+    transform: translateY(-2px);
+    transition: transform 0.2s;
+}
+
+/* Card grid view */
+
+.card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+}
+
+/* Card animation */
+
+@keyframes cardAppear {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.card-animation {
+    animation: cardAppear 0.3s ease-out forwards;
+}
+
+/* Card editor */
+
+.card-editor-container {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.tag-editor {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    padding: 10px;
+    border: 1px solid #ced4da;
+    border-radius: 0.25rem;
+    min-height: 42px;
+}
+
+.tag-item {
+    background-color: #e9ecef;
+    border-radius: 4px;
+    padding: 2px 8px;
+    display: flex;
+    align-items: center;
+}
+
+.tag-item .remove-tag {
+    margin-left: 5px;
+    cursor: pointer;
+}
+
+.tag-input {
+    flex: 1;
+    border: none;
+    outline: none;
+    padding: 0;
+    background: transparent;
+    min-width: 60px;
+}

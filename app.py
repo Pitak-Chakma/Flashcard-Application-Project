@@ -1,376 +1,527 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, g
-import sqlite3
+from flask import Flask, render_template, url_for, flash, redirect, request, abort, jsonify
+from flask_login import LoginManager, login_user, current_user, logout_user, login_required
+from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
 import os
-import json
-import datetime
-from werkzeug.exceptions import abort
-from functools import wraps
-from models import User, Tag, Flashcard, Progress, Notification, Reward
+from datetime import datetime, timedelta
+import random
 from config import Config
-from helpers import login_required, calculate_next_review, check_achievements
+from models import db, User, UserRole, Card, Tag, CardReview, Achievement, UserAchievement, ActivityLog
+from forms import (RegistrationForm, LoginForm, UpdateProfileForm, CreateCardForm, 
+                  SearchCardForm, ChangePasswordForm)
 
-# Initialize Flask app
+# Initialize the app
 app = Flask(__name__)
 app.config.from_object(Config)
 
-# Ensure the database exists
-def init_db():
-    if not os.path.exists(app.config['DATABASE']):
-        conn = sqlite3.connect(app.config['DATABASE'])
-        with app.open_resource('schema.sql', mode='r') as f:
-            conn.executescript(f.read())
-        conn.commit()
-        conn.close()
+# Set up the database
+db.init_app(app)
 
-with app.app_context():
-    init_db()
+# Set up login manager
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
 
-# Database connection helper
-def get_db_connection():
-    conn = sqlite3.connect(app.config['DATABASE'])
-    conn.row_factory = sqlite3.Row
-    return conn
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
 
-# Routes
+# Create folders if they don't exist
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
+# Helper function to log activity
+def log_activity(user_id, action, details=None):
+    log = ActivityLog(user_id=user_id, action=action, details=details)
+    db.session.add(log)
+    db.session.commit()
+
+# Home page route
 @app.route('/')
 def index():
-    if 'user_id' in session:
-        return redirect(url_for('dashboard'))
-    return render_template('auth/login.html')
+    return render_template('index.html')
 
+# User registration route
 @app.route('/register', methods=['GET', 'POST'])
 def register():
-    if request.method == 'POST':
-        username = request.form['username']
-        email = request.form['email']
-        password = request.form['password']
-        
-        if not username or not email or not password:
-            flash('All fields are required', 'error')
-            return render_template('auth/register.html')
-        
-        if User.create(username, email, password):
-            flash('Registration successful! Please log in.', 'success')
-            return redirect(url_for('login'))
-        else:
-            flash('Username or email already exists', 'error')
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard'))
     
-    return render_template('auth/register.html')
+    form = RegistrationForm()
+    if form.validate_on_submit():
+        hashed_password = generate_password_hash(form.password.data)
+        user = User(username=form.username.data, email=form.email.data, password=hashed_password)
+        
+        # Add to database
+        db.session.add(user)
+        db.session.commit()
+        
+        # Log activity
+        log_activity(user.id, "User registered")
+        
+        flash('Your account has been created! You can now log in.', 'success')
+        return redirect(url_for('login'))
+    
+    return render_template('register.html', form=form)
 
+# User login route
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-        
-        user = User.authenticate(username, password)
-        
-        if user:
-            session['user_id'] = user['id']
-            session['username'] = user['username']
-            flash('Login successful!', 'success')
-            return redirect(url_for('dashboard'))
-        else:
-            flash('Invalid username or password', 'error')
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard'))
     
-    return render_template('auth/login.html')
+    form = LoginForm()
+    if form.validate_on_submit():
+        user = User.query.filter_by(email=form.email.data).first()
+        
+        if user and check_password_hash(user.password, form.password.data):
+            login_user(user, remember=form.remember.data)
+            log_activity(user.id, "User logged in")
+            
+            next_page = request.args.get('next')
+            return redirect(next_page) if next_page else redirect(url_for('dashboard'))
+        else:
+            flash('Login unsuccessful. Please check email and password.', 'danger')
+    
+    return render_template('login.html', form=form)
 
+# User logout route
 @app.route('/logout')
+@login_required
 def logout():
-    session.clear()
-    flash('You have been logged out', 'info')
-    return redirect(url_for('login'))
+    log_activity(current_user.id, "User logged out")
+    logout_user()
+    return redirect(url_for('index'))
 
+# User dashboard
 @app.route('/dashboard')
 @login_required
 def dashboard():
-    user_id = session['user_id']
-    tags = Tag.get_by_user(user_id)
-    stats = Progress.get_user_stats(user_id)
+    # Get user stats
+    user_cards = Card.query.filter_by(user_id=current_user.id).count()
+    reviews_today = CardReview.query.filter(
+        CardReview.user_id == current_user.id,
+        CardReview.next_review <= datetime.utcnow()
+    ).count()
+    achievements = UserAchievement.query.filter_by(user_id=current_user.id).all()
+    
+    # Check for admin
+    is_admin = current_user.role == UserRole.ADMIN
+    
+    return render_template('dashboard.html', 
+                          user_cards=user_cards, 
+                          reviews_today=reviews_today,
+                          achievements=achievements,
+                          is_admin=is_admin)
 
-    # Ensure daily_reviews and daily_success_rates are initialized
-    stats['daily_reviews'] = stats.get('daily_reviews', [])
-    stats['daily_success_rates'] = stats.get('daily_success_rates', [])
-
-    return render_template(
-        'dashboard.html',
-        tags=tags,
-        stats=stats
-    )
-
-
-@app.route('/tags/create', methods=['GET', 'POST'])
+# User profile
+@app.route('/profile', methods=['GET', 'POST'])
 @login_required
-def create_tag():
-    user_id = session['user_id']
+def profile():
+    form = UpdateProfileForm()
     
-    if request.method == 'POST':
-        tag_name = request.form['tag_name']
-        is_public = 'is_public' in request.form  # Checkbox for public/private
-
-        # Validate inputs
-        if not tag_name:
-            flash('Tag name is required', 'error')
-            return render_template('tags/create.html')
-
-        # Create the tag
-        Tag.create(user_id, tag_name, is_public)
-        flash('Tag created successfully', 'success')
-        return redirect(url_for('dashboard'))
+    if form.validate_on_submit():
+        current_user.username = form.username.data
+        current_user.email = form.email.data
+        
+        # Handle profile pic upload
+        if form.profile_pic.data:
+            picture_file = save_profile_picture(form.profile_pic.data)
+            current_user.profile_pic = picture_file
+        
+        db.session.commit()
+        log_activity(current_user.id, "Profile updated")
+        flash('Your profile has been updated!', 'success')
+        return redirect(url_for('profile'))
     
-    return render_template('tags/create.html')
+    # Pre-populate the form
+    elif request.method == 'GET':
+        form.username.data = current_user.username
+        form.email.data = current_user.email
+    
+    return render_template('profile.html', form=form)
 
+# Helper function to save profile pictures
+def save_profile_picture(form_picture):
+    # Generate a random filename to avoid collisions
+    random_hex = os.urandom(8).hex()
+    _, f_ext = os.path.splitext(secure_filename(form_picture.filename))
+    picture_filename = random_hex + f_ext
+    
+    picture_path = os.path.join(app.root_path, app.config['UPLOAD_FOLDER'], picture_filename)
+    form_picture.save(picture_path)
+    
+    return picture_filename
 
-@app.route('/tags/<int:tag_id>/update', methods=['POST'])
+# Change password
+@app.route('/change_password', methods=['GET', 'POST'])
 @login_required
-def update_tag(tag_id):
-    user_id = session['user_id']
-    is_public = 'is_public' in request.form
+def change_password():
+    form = ChangePasswordForm()
     
-    Tag.update_visibility(tag_id, user_id, is_public)
-    flash('Tag visibility updated', 'success')
+    if form.validate_on_submit():
+        if check_password_hash(current_user.password, form.current_password.data):
+            hashed_password = generate_password_hash(form.new_password.data)
+            current_user.password = hashed_password
+            db.session.commit()
+            log_activity(current_user.id, "Password changed")
+            flash('Your password has been updated!', 'success')
+            return redirect(url_for('profile'))
+        else:
+            flash('Current password is incorrect.', 'danger')
     
-    return redirect(url_for('dashboard'))
+    return render_template('change_password.html', form=form)
 
-@app.route('/tags/<int:tag_id>')
+# Delete account
+@app.route('/delete_account', methods=['POST'])
 @login_required
-def view_tag(tag_id):
-    user_id = session['user_id']
-    flashcards = Flashcard.get_by_tag(tag_id, user_id)
+def delete_account():
+    # Delete all user's cards, reviews, and achievements first
+    Card.query.filter_by(user_id=current_user.id).delete()
+    CardReview.query.filter_by(user_id=current_user.id).delete()
+    UserAchievement.query.filter_by(user_id=current_user.id).delete()
+    ActivityLog.query.filter_by(user_id=current_user.id).delete()
     
-    return render_template('flashcards/view.html', flashcards=flashcards, tag_id=tag_id)
+    # Delete the user
+    user_id = current_user.id
+    db.session.delete(current_user)
+    db.session.commit()
+    
+    flash('Your account has been deleted.', 'info')
+    return redirect(url_for('index'))
 
-@app.route('/flashcards/create', methods=['GET', 'POST'])
+# Create flashcard
+@app.route('/create_card', methods=['GET', 'POST'])
 @login_required
-def create_flashcard():
-    user_id = session['user_id']
+def create_card():
+    form = CreateCardForm()
     
-    if request.method == 'POST':
-        tag_id = request.form['tag_id']
-        question = request.form['question']
-        correct_answer = request.form['correct_answer']
-        options = request.form.getlist('options[]')  # Assuming options are sent as a list
-        is_public = 'is_public' in request.form  # Checkbox for public/private
-
-        # Validate inputs
-        if not tag_id or not question or not correct_answer or not options:
-            flash('All fields are required', 'error')
-            tags = Tag.get_by_user(user_id)
-            return render_template('flashcards/create.html', tags=tags)
-
-        # Create the flashcard
-        Flashcard.create(user_id, tag_id, question, options, correct_answer, is_public)
-        flash('Flashcard created successfully', 'success')
-        return redirect(url_for('view_tag', tag_id=tag_id))
+    if form.validate_on_submit():
+        # Create the card
+        card = Card(
+            question=form.question.data,
+            answer=form.answer.data,
+            is_public=form.is_public.data,
+            user_id=current_user.id
+        )
+        
+        # Process tags
+        if form.tags.data:
+            tag_names = [tag.strip() for tag in form.tags.data.split(',')]
+            for tag_name in tag_names:
+                # Check if tag exists, create if it doesn't
+                tag = Tag.query.filter_by(name=tag_name).first()
+                if not tag:
+                    tag = Tag(name=tag_name)
+                    db.session.add(tag)
+                card.tags.append(tag)
+        
+        # Add card to database
+        db.session.add(card)
+        db.session.commit()
+        
+        # Create initial review interval
+        review = CardReview(
+            card_id=card.id,
+            user_id=current_user.id,
+            next_review=datetime.utcnow()
+        )
+        db.session.add(review)
+        db.session.commit()
+        
+        log_activity(current_user.id, "Created flashcard", f"Card ID: {card.id}")
+        flash('Your flashcard has been created!', 'success')
+        return redirect(url_for('view_cards'))
     
-    tags = Tag.get_by_user(user_id)
-    return render_template('flashcards/create.html', tags=tags)
+    return render_template('create_card.html', form=form)
 
-
-@app.route('/flashcards/test/<int:tag_id>')
+# View flashcards
+@app.route('/view_cards')
 @login_required
-def test_flashcards(tag_id):
-    user_id = session['user_id']
-    flashcards = Flashcard.get_by_tag(tag_id, user_id)
+def view_cards():
+    search_form = SearchCardForm()
+    page = request.args.get('page', 1, type=int)
+    search = request.args.get('search', '')
+    tag_filter = request.args.get('tag', '')
     
-    # Get a random flashcard from this tag
-    import random
-    if flashcards:
-        card = random.choice(flashcards)
-        return render_template('flashcards/test.html', card=card, tag_id=tag_id)
-    else:
-        flash('No flashcards found in this tag', 'error')
-        return redirect(url_for('dashboard'))
+    # Base query: user's own cards
+    query = Card.query.filter_by(user_id=current_user.id)
+    
+    # Apply search if provided
+    if search:
+        query = query.filter(
+            (Card.question.contains(search)) | 
+            (Card.answer.contains(search))
+        )
+    
+    # Apply tag filter if provided
+    if tag_filter:
+        tag = Tag.query.filter_by(name=tag_filter).first()
+        if tag:
+            query = query.filter(Card.tags.contains(tag))
+    
+    # Get paginated results
+    cards = query.order_by(Card.date_created.desc()).paginate(page=page, per_page=10)
+    
+    # Get all tags for filter dropdown
+    all_tags = Tag.query.join(Tag.cards).filter(Card.user_id == current_user.id).distinct().all()
+    
+    return render_template('view_cards.html', cards=cards, search_form=search_form, 
+                          all_tags=all_tags, current_search=search, current_tag=tag_filter)
 
-@app.route('/flashcards/answer', methods=['POST'])
+# Edit flashcard
+@app.route('/edit_card/<int:card_id>', methods=['GET', 'POST'])
 @login_required
-def answer_flashcard():
-    user_id = session['user_id']
-    flashcard_id = request.form['flashcard_id']
-    tag_id = request.form['tag_id']
-    selected_answer = request.form['selected_answer']
-    correct_answer = request.form['correct_answer']
+def edit_card(card_id):
+    card = Card.query.get_or_404(card_id)
     
-    is_correct = selected_answer == correct_answer
-    Flashcard.update_review_schedule(flashcard_id, user_id, is_correct)
+    # Check if user owns the card
+    if card.user_id != current_user.id:
+        abort(403)  # Forbidden
+    
+    form = CreateCardForm()
+    
+    if form.validate_on_submit():
+        card.question = form.question.data
+        card.answer = form.answer.data
+        card.is_public = form.is_public.data
+        
+        # Update tags
+        card.tags.clear()
+        if form.tags.data:
+            tag_names = [tag.strip() for tag in form.tags.data.split(',')]
+            for tag_name in tag_names:
+                tag = Tag.query.filter_by(name=tag_name).first()
+                if not tag:
+                    tag = Tag(name=tag_name)
+                    db.session.add(tag)
+                card.tags.append(tag)
+        
+        db.session.commit()
+        log_activity(current_user.id, "Edited flashcard", f"Card ID: {card.id}")
+        flash('Your flashcard has been updated!', 'success')
+        return redirect(url_for('view_cards'))
+    
+    # Pre-populate the form
+    elif request.method == 'GET':
+        form.question.data = card.question
+        form.answer.data = card.answer
+        form.is_public.data = card.is_public
+        form.tags.data = ', '.join([tag.name for tag in card.tags])
+    
+    return render_template('create_card.html', form=form, title='Edit Flashcard')
+
+# Delete flashcard
+@app.route('/delete_card/<int:card_id>', methods=['POST'])
+@login_required
+def delete_card(card_id):
+    card = Card.query.get_or_404(card_id)
+    
+    # Check if user owns the card
+    if card.user_id != current_user.id:
+        abort(403)  # Forbidden
+    
+    # Delete related reviews
+    CardReview.query.filter_by(card_id=card.id).delete()
+    
+    # Delete the card
+    db.session.delete(card)
+    db.session.commit()
+    
+    log_activity(current_user.id, "Deleted flashcard", f"Card ID: {card.id}")
+    flash('Your flashcard has been deleted!', 'success')
+    return redirect(url_for('view_cards'))
+
+# Study route
+@app.route('/study')
+@login_required
+def study():
+    # Get cards due for review
+    reviews = CardReview.query.filter(
+        CardReview.user_id == current_user.id,
+        CardReview.next_review <= datetime.utcnow()
+    ).all()
+    
+    # Count how many cards are due
+    cards_due = len(reviews)
+    
+    return render_template('study.html', cards_due=cards_due)
+
+# API to get next card for study
+@app.route('/api/get_next_card')
+@login_required
+def get_next_card():
+    # Find cards due for review
+    review = CardReview.query.filter(
+        CardReview.user_id == current_user.id,
+        CardReview.next_review <= datetime.utcnow()
+    ).first()
+    
+    if not review:
+        return jsonify({'status': 'complete'})
+    
+    card = Card.query.get(review.card_id)
+    tags = [tag.name for tag in card.tags]
+    
+    return jsonify({
+        'status': 'success',
+        'card_id': card.id,
+        'question': card.question,
+        'answer': card.answer,
+        'tags': tags,
+        'review_id': review.id
+    })
+
+# API to update card review based on difficulty
+@app.route('/api/update_review/<int:review_id>', methods=['POST'])
+@login_required
+def update_review(review_id):
+    review = CardReview.query.get_or_404(review_id)
+    
+    # Check if user owns the review
+    if review.user_id != current_user.id:
+        return jsonify({'status': 'error', 'message': 'Unauthorized'}), 403
+    
+    # Get difficulty rating from request (1-4 scale)
+    data = request.get_json()
+    difficulty = int(data.get('difficulty', 3))
+    
+    # Update using SM-2 algorithm (Simplified)
+    if difficulty == 1:  # Again
+        review.interval = 1
+        review.ease_factor = max(1.3, review.ease_factor - 0.2)
+    elif difficulty == 2:  # Hard
+        review.interval = max(1, int(review.interval * 1.2))
+        review.ease_factor = max(1.3, review.ease_factor - 0.15)
+    elif difficulty == 3:  # Good
+        review.interval = max(1, int(review.interval * review.ease_factor))
+        # Ease factor stays the same
+    elif difficulty == 4:  # Easy
+        review.interval = max(1, int(review.interval * review.ease_factor * 1.3))
+        review.ease_factor = min(2.5, review.ease_factor + 0.15)
+    
+    # Update next review date
+    review.next_review = datetime.utcnow() + timedelta(days=review.interval)
+    review.last_reviewed = datetime.utcnow()
+    
+    db.session.commit()
+    log_activity(current_user.id, "Reviewed flashcard", 
+                f"Card ID: {review.card_id}, Difficulty: {difficulty}, Next review in {review.interval} days")
     
     # Check for achievements
-    stats = Progress.get_user_stats(user_id)
-    check_achievements(user_id, stats)
+    check_review_achievements(current_user.id)
     
-    if is_correct:
-        flash('Correct answer! Good job!', 'success')
-    else:
-        flash(f'Incorrect. The correct answer was: {correct_answer}', 'error')
-    
-    return redirect(url_for('test_flashcards', tag_id=tag_id))
+    return jsonify({'status': 'success'})
 
-@app.route('/stats')
+# Helper function to check and award review-based achievements
+def check_review_achievements(user_id):
+    # Count total reviews
+    review_count = CardReview.query.filter(
+        CardReview.user_id == user_id,
+        CardReview.last_reviewed != None
+    ).count()
+    
+    # Milestone achievements
+    milestones = {
+        10: "Beginner Reviewer",
+        50: "Intermediate Reviewer", 
+        100: "Advanced Reviewer",
+        500: "Master Reviewer"
+    }
+    
+    for count, name in milestones.items():
+        if review_count >= count:
+            # Check if user already has this achievement
+            achievement = Achievement.query.filter_by(name=name).first()
+            
+            if not achievement:
+                # Create achievement if it doesn't exist
+                achievement = Achievement(
+                    name=name,
+                    description=f"Completed {count} flashcard reviews",
+                    badge_image=f"badge_{count}.png"
+                )
+                db.session.add(achievement)
+                db.session.flush()
+            
+            # Check if user already has this achievement
+            user_achievement = UserAchievement.query.filter_by(
+                user_id=user_id,
+                achievement_id=achievement.id
+            ).first()
+            
+            if not user_achievement:
+                # Award achievement
+                new_achievement = UserAchievement(
+                    user_id=user_id,
+                    achievement_id=achievement.id
+                )
+                db.session.add(new_achievement)
+                db.session.commit()
+                
+                log_activity(user_id, "Earned achievement", f"Achievement: {name}")
+
+# Admin dashboard
+@app.route('/admin')
 @login_required
-def view_stats():
-    user_id = session['user_id']
-    stats = Progress.get_user_stats(user_id)
+def admin_dashboard():
+    # Check if user is admin
+    if current_user.role != UserRole.ADMIN:
+        abort(403)  # Forbidden
     
-    # Add additional data for charts
-    conn = get_db_connection()
+    # Get stats for admin dashboard
+    total_users = User.query.count()
+    total_cards = Card.query.count()
+    total_reviews = CardReview.query.count()
     
-    # Get daily review counts for the last 7 days
-    seven_days_ago = (datetime.datetime.now() - datetime.timedelta(days=7)).isoformat()
-    daily_reviews = []
-    daily_success_rates = []
+    # Get recent activity logs
+    activity_logs = ActivityLog.query.order_by(ActivityLog.timestamp.desc()).limit(50).all()
     
-    for i in range(7):
-        day = (datetime.datetime.now() - datetime.timedelta(days=i)).strftime('%Y-%m-%d')
-        day_start = f"{day}T00:00:00"
-        day_end = f"{day}T23:59:59"
+    # Get user list
+    users = User.query.all()
+    
+    return render_template('admin.html', total_users=total_users, total_cards=total_cards,
+                          total_reviews=total_reviews, activity_logs=activity_logs,
+                          users=users)
+
+# Admin: edit user
+@app.route('/admin/edit_user/<int:user_id>', methods=['GET', 'POST'])
+@login_required
+def admin_edit_user(user_id):
+    # Check if user is admin
+    if current_user.role != UserRole.ADMIN:
+        abort(403)  # Forbidden
+    
+    user = User.query.get_or_404(user_id)
+    
+    if request.method == 'POST':
+        user.username = request.form.get('username')
+        user.email = request.form.get('email')
+        user.role = UserRole(request.form.get('role'))
         
-        # Count reviews on this day
-        reviews = conn.execute(
-            '''SELECT COUNT(*) as count FROM user_progress 
-               WHERE user_id = ? AND reviewed_at BETWEEN ? AND ?''',
-            (user_id, day_start, day_end)
-        ).fetchone()['count']
-        
-        # Count successful reviews on this day
-        if reviews > 0:
-            successful = conn.execute(
-                '''SELECT COUNT(*) as count FROM user_progress 
-                   WHERE user_id = ? AND reviewed_at BETWEEN ? AND ? AND is_correct = 1''',
-                (user_id, day_start, day_end)
-            ).fetchone()['count']
-            success_rate = round((successful / reviews) * 100, 1)
-        else:
-            success_rate = 0
-        
-        daily_reviews.insert(0, reviews)
-        daily_success_rates.insert(0, success_rate)
+        db.session.commit()
+        log_activity(current_user.id, "Admin edited user", f"User ID: {user.id}")
+        flash('User has been updated!', 'success')
+        return redirect(url_for('admin_dashboard'))
     
-    stats['daily_reviews'] = daily_reviews
-    stats['daily_success_rates'] = daily_success_rates
-    
-    # Get upcoming reviews
-    now = datetime.datetime.now()
-    upcoming = {}
-    max_count = 0
-    
-    # Get next 7 days
-    for i in range(7):
-        day = (now + datetime.timedelta(days=i)).strftime('%m/%d')
-        day_start = (now + datetime.timedelta(days=i)).strftime('%Y-%m-%d') + "T00:00:00"
-        day_end = (now + datetime.timedelta(days=i)).strftime('%Y-%m-%d') + "T23:59:59"
-        
-        count = conn.execute(
-            '''SELECT COUNT(*) as count FROM flashcards 
-               WHERE user_id = ? AND next_review BETWEEN ? AND ?''',
-            (user_id, day_start, day_end)
-        ).fetchone()['count']
-        
-        upcoming[day] = count
-        max_count = max(max_count, count)
-    
-    stats['upcoming_reviews'] = upcoming
-    stats['max_daily_reviews'] = max_count
-    
-    # Get current max interval setting (would be in a settings table)
-    stats['current_max_interval'] = 60  # Default value
-    
-    conn.close()
-    
-    return render_template('stats.html', stats=stats)
+    return render_template('admin_edit_user.html', user=user, roles=UserRole)
 
-@app.route('/notifications/mark-read/<int:notification_id>', methods=['POST'])
-@login_required
-def mark_notification_read(notification_id):
-    user_id = session['user_id']
-    Notification.mark_as_read(notification_id, user_id)
-    return redirect(url_for('dashboard'))
-
-@app.route('/schedule-notifications', methods=['POST'])
-@login_required
-def schedule_notifications():
-    user_id = session['user_id']
-    interval_hours = int(request.form['interval_hours'])
+# Initialize database
+@app.before_first_request
+def create_tables():
+    db.create_all()
     
-    now = datetime.datetime.now()
-    next_review = now + datetime.timedelta(hours=interval_hours)
-    
-    Notification.create(
-        user_id,
-        f"Time to review your flashcards!",
-        scheduled_for=next_review.isoformat()
-    )
-    
-    flash('Notification scheduled successfully', 'success')
-    return redirect(url_for('dashboard'))
-
-@app.route('/browse')
-@login_required
-def browse_public():
-    public_tags = Tag.get_public_tags()
-    return render_template('flashcards/browse.html', tags=public_tags)
-
-@app.route('/update_flashcard_visibility/<int:flashcard_id>', methods=['POST'])
-@login_required
-def update_flashcard_visibility(flashcard_id):
-    user_id = session['user_id']
-    is_public = 'is_public' in request.form
-    
-    conn = get_db_connection()
-    conn.execute(
-        'UPDATE flashcards SET is_public = ? WHERE id = ? AND user_id = ?',
-        (is_public, flashcard_id, user_id)
-    )
-    conn.commit()
-    conn.close()
-    
-    flash('Flashcard visibility updated', 'success')
-    return redirect(request.referrer or url_for('dashboard'))
-
-@app.route('/test_specific_flashcard/<int:flashcard_id>')
-@login_required
-def test_specific_flashcard(flashcard_id):
-    user_id = session['user_id']
-    
-    conn = get_db_connection()
-    card = conn.execute(
-        '''SELECT * FROM flashcards 
-           WHERE id = ? AND (user_id = ? OR is_public = 1)''',
-        (flashcard_id, user_id)
-    ).fetchone()
-    conn.close()
-    
-    if not card:
-        flash('Flashcard not found', 'error')
-        return redirect(url_for('dashboard'))
-    
-    card_dict = dict(card)
-    card_dict['options'] = json.loads(card_dict['options'])
-    
-    return render_template('flashcards/test.html', card=card_dict, tag_id=card_dict['tag_id'])
-
-@app.route('/update_spaced_repetition', methods=['POST'])
-@login_required
-def update_spaced_repetition():
-    user_id = session['user_id']
-    max_interval = request.form.get('max_interval', 60)
-    
-    # In a real application, we would store this setting in a user_settings table
-    # For now, we just acknowledge the request
-    flash('Spaced repetition settings updated', 'success')
-    return redirect(url_for('view_stats'))
-
-# Error handlers
-@app.errorhandler(404)
-def not_found(e):
-    return render_template('error.html', 
-                           error_code=404, 
-                           error_message="The page you're looking for doesn't exist."), 404
-
-@app.errorhandler(500)
-def server_error(e):
-    return render_template('error.html', 
-                           error_code=500, 
-                           error_message="Something went wrong on our end."), 500
+    # Create admin user if not exists
+    admin = User.query.filter_by(email='admin@example.com').first()
+    if not admin:
+        hashed_password = generate_password_hash('admin123')
+        admin = User(username='admin', email='admin@example.com', 
+                    password=hashed_password, role=UserRole.ADMIN)
+        db.session.add(admin)
+        db.session.commit()
 
 if __name__ == '__main__':
     app.run(debug=True)
+
+# Add this at the bottom of app.py
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))

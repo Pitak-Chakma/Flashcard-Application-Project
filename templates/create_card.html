@@ -1,0 +1,116 @@
+{% extends "layout.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/cards.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1>{% if request.endpoint == 'edit_card' %}Edit{% else %}Create{% endif %} Flashcard</h1>
+        <p class="lead">{% if request.endpoint == 'edit_card' %}Update your existing{% else %}Create a new{% endif %} flashcard</p>
+    </div>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">{% if request.endpoint == 'edit_card' %}Edit{% else %}New{% endif %} Flashcard</h4>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="">
+                    {{ form.hidden_tag() }}
+                    
+                    <div class="mb-3">
+                        {{ form.question.label(class="form-label") }}
+                        {% if form.question.errors %}
+                            {{ form.question(class="form-control is-invalid", rows=4) }}
+                            <div class="invalid-feedback">
+                                {% for error in form.question.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            {{ form.question(class="form-control", rows=4) }}
+                        {% endif %}
+                        <div class="form-text">The front side of your flashcard</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        {{ form.answer.label(class="form-label") }}
+                        {% if form.answer.errors %}
+                            {{ form.answer(class="form-control is-invalid", rows=4) }}
+                            <div class="invalid-feedback">
+                                {% for error in form.answer.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            {{ form.answer(class="form-control", rows=4) }}
+                        {% endif %}
+                        <div class="form-text">The back side of your flashcard</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        {{ form.tags.label(class="form-label") }}
+                        {% if form.tags.errors %}
+                            {{ form.tags(class="form-control is-invalid") }}
+                            <div class="invalid-feedback">
+                                {% for error in form.tags.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            {{ form.tags(class="form-control") }}
+                        {% endif %}
+                        <div class="form-text">Separate tags with commas (e.g. "math, algebra, equations")</div>
+                    </div>
+                    
+                    <div class="mb-3 form-check">
+                        {{ form.is_public(class="form-check-input") }}
+                        {{ form.is_public.label(class="form-check-label") }}
+                        <div class="form-text">Public cards can be viewed by other users</div>
+                    </div>
+                    
+                    <div class="d-grid">
+                        {{ form.submit(class="btn btn-primary btn-lg") }}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-lg-8 mx-auto">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Preview</h5>
+            </div>
+            <div class="card-body">
+                <div class="flashcard mb-0" id="previewCard">
+                    <div class="flashcard-inner">
+                        <div class="flashcard-front">
+                            <div class="p-3" id="previewQuestion">Question will appear here</div>
+                        </div>
+                        <div class="flashcard-back">
+                            <div class="p-3" id="previewAnswer">Answer will appear here</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="text-center mt-3">
+                    <button type="button" class="btn btn-outline-secondary" id="flipPreviewButton">
+                        <i class="fas fa-sync me-2"></i>Flip Card
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/cards.js') }}"></script>
+{% endblock %}
+
+{% endblock %}

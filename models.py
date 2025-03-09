@@ -1,328 +1,109 @@
-import sqlite3
-import json
-import datetime
-from werkzeug.security import generate_password_hash, check_password_hash
+from flask_sqlalchemy import SQLAlchemy
+from flask_login import UserMixin
+from datetime import datetime
+import enum
 
-def get_db_connection():
-    conn = sqlite3.connect('flashcards.db')
-    conn.row_factory = sqlite3.Row
-    return conn
+db = SQLAlchemy()
 
-class User:
-    @staticmethod
-    def create(username, email, password):
-        conn = get_db_connection()
-        # Explicitly specify the hashing method as pbkdf2:sha256
-        password_hash = generate_password_hash(password, method='pbkdf2:sha256')
-        
-        try:
-            conn.execute(
-                '''
-                INSERT INTO users (username, email, password_hash)
-                VALUES (?, ?, ?)
-                ''',
-                (username, email, password_hash)
-            )
-            conn.commit()
-            return True
-        except sqlite3.IntegrityError:
-            # Username or email already exists
-            return False
-        finally:
-            conn.close()
+# Define user roles
+class UserRole(enum.Enum):
+    ADMIN = "admin"
+    USER = "user"
+    GUEST = "guest"
 
+# Association table for card tags
+card_tags = db.Table('card_tags',
+    db.Column('card_id', db.Integer, db.ForeignKey('card.id')),
+    db.Column('tag_id', db.Integer, db.ForeignKey('tag.id'))
+)
+
+# User model
+class User(db.Model, UserMixin):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(50), unique=True, nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    password = db.Column(db.String(200), nullable=False)
+    profile_pic = db.Column(db.String(100), default='default_profile.png')
+    role = db.Column(db.Enum(UserRole), default=UserRole.USER)
+    date_joined = db.Column(db.DateTime, default=datetime.utcnow)
     
-    @staticmethod
-    def authenticate(username, password):
-        conn = get_db_connection()
-        user = conn.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone()
-        conn.close()
+    # Relationships
+    cards = db.relationship('Card', backref='author', lazy=True)
+    achievements = db.relationship('UserAchievement', backref='user', lazy=True)
     
-        if user and check_password_hash(user['password_hash'], password):
-            return dict(user)
-        return None
+    def __repr__(self):
+        return f"User('{self.username}', '{self.email}')"
 
+# Card model  
+class Card(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    question = db.Column(db.Text, nullable=False)
+    answer = db.Column(db.Text, nullable=False)
+    date_created = db.Column(db.DateTime, default=datetime.utcnow)
+    is_public = db.Column(db.Boolean, default=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     
-    @staticmethod
-    def get_by_id(user_id):
-        conn = get_db_connection()
-        user = conn.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
-        conn.close()
-        return dict(user) if user else None
+    # Relationships
+    tags = db.relationship('Tag', secondary=card_tags, backref=db.backref('cards', lazy='dynamic'))
+    reviews = db.relationship('CardReview', backref='card', lazy=True)
+    
+    def __repr__(self):
+        return f"Card('{self.question[:30]}...', Created: '{self.date_created}')"
 
-class Tag:
-    @staticmethod
-    def create(user_id, name, is_public=False):
-        conn = get_db_connection()
-        try:
-            conn.execute(
-                'INSERT INTO tags (user_id, name, is_public) VALUES (?, ?, ?)',
-                (user_id, name, is_public)
-            )
-            conn.commit()
-            return conn.execute('SELECT last_insert_rowid()').fetchone()[0]
-        finally:
-            conn.close()
+# Tag model
+class Tag(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), nullable=False, unique=True)
     
-    @staticmethod
-    def get_by_user(user_id):
-        conn = get_db_connection()
-        tags = conn.execute(
-            'SELECT * FROM tags WHERE user_id = ? ORDER BY name', 
-            (user_id,)
-        ).fetchall()
-        conn.close()
-        return [dict(tag) for tag in tags]
-    
-    @staticmethod
-    def get_public_tags():
-        conn = get_db_connection()
-        tags = conn.execute(
-            'SELECT t.*, u.username FROM tags t JOIN users u ON t.user_id = u.id WHERE t.is_public = 1'
-        ).fetchall()
-        conn.close()
-        return [dict(tag) for tag in tags]
-    
-    @staticmethod
-    def update_visibility(tag_id, user_id, is_public):
-        conn = get_db_connection()
-        try:
-            # Update tag visibility
-            conn.execute(
-                'UPDATE tags SET is_public = ? WHERE id = ? AND user_id = ?',
-                (is_public, tag_id, user_id)
-            )
-            
-            # Update all flashcards under this tag if making public
-            if is_public:
-                conn.execute(
-                    'UPDATE flashcards SET is_public = 1 WHERE tag_id = ? AND user_id = ?',
-                    (tag_id, user_id)
-                )
-            conn.commit()
-            return True
-        finally:
-            conn.close()
+    def __repr__(self):
+        return f"Tag('{self.name}')"
 
-class Flashcard:
-    @staticmethod
-    def create(user_id, tag_id, question, options, correct_answer, is_public):
-        conn = get_db_connection()
-        conn.execute(
-            '''
-            INSERT INTO flashcards (user_id, tag_id, question, options, correct_answer, is_public)
-            VALUES (?, ?, ?, ?, ?, ?)
-            ''',
-            (user_id, tag_id, question, json.dumps(options), correct_answer, is_public)
-        )
-        conn.commit()
-        conn.close()
-
-
-
-
+# Card review model for spaced repetition
+class CardReview(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    card_id = db.Column(db.Integer, db.ForeignKey('card.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    ease_factor = db.Column(db.Float, default=2.5)
+    interval = db.Column(db.Integer, default=1)  # in days
+    next_review = db.Column(db.DateTime)
+    last_reviewed = db.Column(db.DateTime, default=datetime.utcnow)
     
-    @staticmethod
-    def get_by_tag(tag_id, user_id=None):
-        conn = get_db_connection()
-        query = '''
-            SELECT * FROM flashcards 
-            WHERE tag_id = ? AND (user_id = ? OR is_public = 1)
-        '''
-        flashcards = conn.execute(query, (tag_id, user_id)).fetchall()
-        conn.close()
-        
-        result = []
-        for card in flashcards:
-            card_dict = dict(card)
-            card_dict['options'] = json.loads(card_dict['options'])
-            result.append(card_dict)
-        return result
-    
-    @staticmethod
-    def update_review_schedule(flashcard_id, user_id, is_correct):
-        conn = get_db_connection()
-        now = datetime.datetime.now()
-        
-        # Get current review count
-        card = conn.execute(
-            'SELECT review_count FROM flashcards WHERE id = ? AND user_id = ?',
-            (flashcard_id, user_id)
-        ).fetchone()
-        
-        if not card:
-            conn.close()
-            return False
-        
-        review_count = card['review_count'] + 1
-        
-        # Calculate next review time based on spaced repetition algorithm
-        # Simple implementation: double the interval each time if correct, reset if wrong
-        if is_correct:
-            # 1 day, 2 days, 4 days, 8 days, etc.
-            interval = 24 * (2 ** (review_count - 1))  # hours
-        else:
-            interval = 6  # 6 hours if wrong
-            review_count = 1  # Reset review count if wrong
-        
-        next_review = now + datetime.timedelta(hours=interval)
-        
-        # Update the flashcard
-        conn.execute(
-            '''UPDATE flashcards 
-               SET last_reviewed = ?, next_review = ?, review_count = ?
-               WHERE id = ? AND user_id = ?''',
-            (now.isoformat(), next_review.isoformat(), review_count, flashcard_id, user_id)
-        )
-        
-        # Record progress
-        conn.execute(
-            'INSERT INTO user_progress (user_id, flashcard_id, is_correct) VALUES (?, ?, ?)',
-            (user_id, flashcard_id, is_correct)
-        )
-        
-        conn.commit()
-        conn.close()
-        return True
-    
-    @staticmethod
-    def get_due_for_review(user_id):
-        conn = get_db_connection()
-        now = datetime.datetime.now().isoformat()
-        
-        cards = conn.execute(
-            '''SELECT * FROM flashcards 
-               WHERE user_id = ? AND (next_review IS NULL OR next_review <= ?)
-               ORDER BY RANDOM() LIMIT 10''',
-            (user_id, now)
-        ).fetchall()
-        
-        conn.close()
-        
-        result = []
-        for card in cards:
-            card_dict = dict(card)
-            card_dict['options'] = json.loads(card_dict['options'])
-            result.append(card_dict)
-        return result
+    def __repr__(self):
+        return f"CardReview(Card: {self.card_id}, Next review: {self.next_review})"
 
-class Progress:
-    @staticmethod
-    def get_user_stats(user_id):
-        conn = get_db_connection()
-        
-        stats = {}
-        
-        # Total flashcards created
-        total_cards = conn.execute(
-            'SELECT COUNT(*) as count FROM flashcards WHERE user_id = ?', 
-            (user_id,)
-        ).fetchone()['count']
-        stats['total_cards'] = total_cards
-        
-        # Total attempts
-        total_attempts = conn.execute(
-            'SELECT COUNT(*) as count FROM user_progress WHERE user_id = ?', 
-            (user_id,)
-        ).fetchone()['count']
-        stats['total_attempts'] = total_attempts
-        
-        # Success rate
-        if total_attempts > 0:
-            correct_attempts = conn.execute(
-                'SELECT COUNT(*) as count FROM user_progress WHERE user_id = ? AND is_correct = 1', 
-                (user_id,)
-            ).fetchone()['count']
-            stats['success_rate'] = round((correct_attempts / total_attempts) * 100, 2)
-        else:
-            stats['success_rate'] = 0
-        
-        # Cards due for review
-        now = datetime.datetime.now().isoformat()
-        due_cards = conn.execute(
-            '''SELECT COUNT(*) as count FROM flashcards 
-               WHERE user_id = ? AND (next_review IS NULL OR next_review <= ?)''',
-            (user_id, now)
-        ).fetchone()['count']
-        stats['due_cards'] = due_cards
-        
-        # Cards by tag
-        tag_stats = conn.execute(
-            '''SELECT t.name, COUNT(f.id) as card_count
-               FROM tags t
-               LEFT JOIN flashcards f ON t.id = f.tag_id
-               WHERE t.user_id = ?
-               GROUP BY t.id''',
-            (user_id,)
-        ).fetchall()
-        stats['tags'] = [dict(tag) for tag in tag_stats]
-        
-        conn.close()
-        return stats
+# Achievement model
+class Achievement(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.Text, nullable=False)
+    badge_image = db.Column(db.String(100), nullable=False)
+    
+    # Relationship
+    users = db.relationship('UserAchievement', backref='achievement', lazy=True)
+    
+    def __repr__(self):
+        return f"Achievement('{self.name}')"
 
-class Notification:
-    @staticmethod
-    def create(user_id, message, scheduled_for=None):
-        conn = get_db_connection()
-        try:
-            conn.execute(
-                'INSERT INTO notifications (user_id, message, scheduled_for) VALUES (?, ?, ?)',
-                (user_id, message, scheduled_for)
-            )
-            conn.commit()
-            return True
-        finally:
-            conn.close()
+# User-Achievement association model
+class UserAchievement(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    achievement_id = db.Column(db.Integer, db.ForeignKey('achievement.id'), nullable=False)
+    date_earned = db.Column(db.DateTime, default=datetime.utcnow)
     
-    @staticmethod
-    def get_unread(user_id):
-        conn = get_db_connection()
-        now = datetime.datetime.now().isoformat()
-        
-        notifications = conn.execute(
-            '''SELECT * FROM notifications 
-               WHERE user_id = ? AND is_read = 0 
-               AND (scheduled_for IS NULL OR scheduled_for <= ?)
-               ORDER BY created_at DESC''',
-            (user_id, now)
-        ).fetchall()
-        
-        conn.close()
-        return [dict(notification) for notification in notifications]
-    
-    @staticmethod
-    def mark_as_read(notification_id, user_id):
-        conn = get_db_connection()
-        try:
-            conn.execute(
-                'UPDATE notifications SET is_read = 1 WHERE id = ? AND user_id = ?',
-                (notification_id, user_id)
-            )
-            conn.commit()
-            return True
-        finally:
-            conn.close()
+    def __repr__(self):
+        return f"UserAchievement(User: {self.user_id}, Achievement: {self.achievement_id})"
 
-class Reward:
-    @staticmethod
-    def grant(user_id, name, description=None):
-        conn = get_db_connection()
-        try:
-            conn.execute(
-                'INSERT INTO rewards (user_id, name, description) VALUES (?, ?, ?)',
-                (user_id, name, description)
-            )
-            conn.commit()
-            return True
-        finally:
-            conn.close()
+# Activity log model for admin tracking
+class ActivityLog(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    action = db.Column(db.String(255), nullable=False)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    details = db.Column(db.Text)
     
-    @staticmethod
-    def get_user_rewards(user_id):
-        conn = get_db_connection()
-        rewards = conn.execute(
-            'SELECT * FROM rewards WHERE user_id = ? ORDER BY achieved_at DESC',
-            (user_id,)
-        ).fetchall()
-        conn.close()
-        return [dict(reward) for reward in rewards]
+    # Relationship
+    user = db.relationship('User', backref='activities', lazy=True)
+    
+    def __repr__(self):
+        return f"ActivityLog(User: {self.user_id}, Action: '{self.action[:30]}...', Time: {self.timestamp})"
