@@ -37,7 +37,7 @@ deactivate () {
 # unset irrelevant variables
 deactivate nondestructive
 
-VIRTUAL_ENV="/Users/foodinator2.0/Documents/T01/flashcard_app/venv"
+VIRTUAL_ENV="/Users/foodinator/Documents/GitHub/Flashcard-Application-Project/venv"
 export VIRTUAL_ENV
 
 _OLD_VIRTUAL_PATH="$PATH"
