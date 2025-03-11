@@ -27,10 +27,10 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Flip preview card on button click
+    // Fixed flip preview card function
     if (flipPreviewButton && previewCard) {
         flipPreviewButton.addEventListener('click', function() {
-            flipCard(previewCard);
+            previewCard.classList.toggle('flipped');  // Use toggle instead of flipCard function
         });
     }
     
@@ -43,6 +43,12 @@ document.addEventListener('DOMContentLoaded', function() {
         previewAnswer.textContent = answerInput.value || 'Answer will appear here';
     }
 });
+
+// Make flipCard function available globally
+function flipCard(card) {
+    card.classList.toggle('flipped');
+}
+
 
 // Tag input functionality
 document.addEventListener('DOMContentLoaded', function() {

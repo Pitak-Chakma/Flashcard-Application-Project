@@ -1,3 +1,4 @@
+<!-- Modified login.html template to include admin login info -->
 {% extends "layout.html" %}
 
 {% block extra_css %}
@@ -53,8 +54,16 @@
                     </div>
                 </form>
             </div>
-            <div class="card-footer text-center">
-                <p class="mb-0">Don't have an account? <a href="{{ url_for('register') }}">Register</a></p>
+            <div class="card-footer">
+                <p class="mb-0 text-center">Don't have an account? <a href="{{ url_for('register') }}">Register</a></p>
+                
+                <!-- Added admin login info -->
+                <div class="alert alert-info mt-3 mb-0">
+                    <p class="mb-0"><strong>Admin Login:</strong></p>
+                    <p class="mb-0">Email: admin@example.com</p>
+                    <p class="mb-0">Password: admin123</p>
+                    <small class="text-muted">These are the default admin credentials created on first run.</small>
+                </div>
             </div>
         </div>
     </div>
