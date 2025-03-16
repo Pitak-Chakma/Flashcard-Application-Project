@@ -29,7 +29,7 @@ end
 # Unset irrelevant variables.
 deactivate nondestructive
 
-set -gx VIRTUAL_ENV "/Users/foodinator/Documents/GitHub/Flashcard-Application-Project/venv"
+set -gx VIRTUAL_ENV "/Users/foodinator2.0/Documents/T01/before_github/venv"
 
 set -gx _OLD_VIRTUAL_PATH $PATH
 set -gx PATH "$VIRTUAL_ENV/bin" $PATH

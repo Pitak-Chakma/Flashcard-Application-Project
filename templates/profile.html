@@ -12,9 +12,9 @@
                 <h4 class="mb-0">Profile Details</h4>
             </div>
             <div class="card-body text-center">
-                <img src="{{ url_for('static', filename='uploads/profile_pics/' + current_user.profile_pic) }}" 
+                <!-- <img src="{{ url_for('static', filename='uploads/profile_pics/' + current_user.profile_pic) }}" 
                      alt="Profile Picture" class="rounded-circle profile-image mb-3">
-                <h3>{{ current_user.username }}</h3>
+                <h3>{{ current_user.username }}</h3> -->
                 <p class="text-muted">{{ current_user.email }}</p>
                 <p class="badge bg-info">{{ current_user.role.value }}</p>
                 <p class="text-muted">Member since: {{ current_user.date_joined.strftime('%B %d, %Y') }}</p>
@@ -40,9 +40,9 @@
     
     <div class="col-md-8">
         <div class="card">
-            <div class="card-header bg-primary text-white">
+            <!-- <div class="card-header bg-primary text-white">
                 <h4 class="mb-0">Update Profile</h4>
-            </div>
+            </div> -->
             <div class="card-body">
                 <form method="POST" action="{{ url_for('profile') }}" enctype="multipart/form-data">
                     {{ form.hidden_tag() }}
@@ -75,7 +75,7 @@
                         {% endif %}
                     </div>
                     
-                    <div class="mb-3">
+                    <!-- <div class="mb-3">
                         {{ form.profile_pic.label(class="form-label") }}
                         <div class="input-group">
                             {{ form.profile_pic(class="form-control") }}
@@ -89,7 +89,7 @@
                                 {% endfor %}
                             </div>
                         {% endif %}
-                    </div>
+                    </div> -->
                     
                     <div class="d-grid">
                         {{ form.submit(class="btn btn-primary") }}
