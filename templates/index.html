@@ -1,54 +1,191 @@
 {% extends "layout.html" %}
 
 {% block content %}
-<div class="row align-items-center py-5">
-    <div class="col-md-6">
-        <h1 class="display-4 fw-bold">Master Your Knowledge with Flashcards</h1>
-        <p class="lead">Create, study, and track progress with our powerful spaced repetition system.</p>
-        {% if not current_user.is_authenticated %}
-            <div class="d-grid gap-2 d-md-flex mt-4">
-                <a href="{{ url_for('register') }}" class="btn btn-primary btn-lg px-4 me-md-2">Get Started</a>
-                <a href="{{ url_for('login') }}" class="btn btn-outline-secondary btn-lg px-4">Login</a>
-            </div>
-        {% else %}
-            <div class="d-grid gap-2 d-md-flex mt-4">
-                <a href="{{ url_for('dashboard') }}" class="btn btn-primary btn-lg px-4 me-md-2">Go to Dashboard</a>
-                <a href="{{ url_for('create_card') }}" class="btn btn-success btn-lg px-4">Create Flashcard</a>
-            </div>
-        {% endif %}
-    </div>
-    <div class="col-md-6">
-        <img src="{{ url_for('static', filename='images/test1.jpg') }}" alt="Flashcards" class="img-fluid">
-    </div>
-</div>
+<!-- Hero Section with Enhanced Gradient and Visible Text -->
+<section class="container-fluid py-5 mb-4 bg-gradient rounded-4 shadow-sm position-relative overflow-hidden" style="background: linear-gradient(135deg, #4a6cf7 0%, #00d2ff 100%);">
+    <div class="container py-5 position-relative">
+        <div class="row align-items-center">
+            <div class="col-lg-6 mb-5 mb-lg-0 text-light">
+                <h1 class="display-3 fw-bold lh-sm animate__animated animate__fadeIn" style="color: #1a202c;">
+                    Learn Smarter, <span class="text-warning">Not Harder</span>
+                </h1>
+                <p class="lead my-4 animate__animated animate__fadeIn animate__delay-1s" style="color: #4a5568;">
+                    Our intelligent flashcard system uses spaced repetition science to help you retain more with less effort—study smarter, not harder.
+                </p>
+                <div class="d-flex gap-3 flex-wrap flex-md-nowrap mb-5 animate__animated animate__fadeIn animate__delay-2s">
+                    <a href="{{ url_for('register') }}" class="btn btn-outline-light btn-lg px-5 py-3 rounded-pill hover-scale">
+                        <i class="fas fa-user-plus me-2"></i>Sign Up Free
+                    </a>
+                    <a href="{{ url_for('login') }}" class="btn btn-outline-light btn-lg px-5 py-3 rounded-pill hover-scale">
+                        <i class="fas fa-sign-in-alt me-2"></i>Log In
+                    </a>
+                </div>
 
-<div class="row mt-5 pt-3">
-    <div class="col-md-4">
-        <div class="card h-100 shadow-sm">
-            <div class="card-body text-center">
-                <i class="fas fa-brain fa-3x text-primary mb-3"></i>
-                <h3>Spaced Repetition</h3>
-                <p>Our algorithm optimizes your learning by showing cards at the perfect time for memory retention.</p>
+                <!-- Modern Demo CTA Card with Visible Text -->
+                <div class="card border-0 rounded-4 shadow bg-white bg-opacity-20 backdrop-blur hover-scale animate__animated animate__fadeIn animate__delay-3s">
+                    <div class="card-body p-4 d-flex align-items-center gap-3 flex-wrap flex-md-nowrap">
+                        <div class="flex-grow-1">
+                            <h4 class="mb-1 fw-semibold" style="color: #1a202c;">Try Without an Account</h4>
+                            <p class="mb-0" style="color: #4a5568;">Experience our flashcard system instantly with sample cards.</p>
+                        </div>
+                        <a href="{{ url_for('demo_flashcards') }}" class="btn btn-success btn-lg rounded-pill px-4 shadow hover-scale">
+                            <i class="fas fa-play-circle me-2"></i>Try Demo
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6 d-flex justify-content-center animate__animated animate__fadeInRight">
+                <div class="position-relative" style="max-width: 550px;">
+                    <!-- Decorative Background Elements -->
+                    <div class="position-absolute start-0 bottom-0 translate-middle animate__animated animate__pulse animate__infinite" style="animation-duration: 3s;">
+                        <div class="rounded-circle bg-primary bg-opacity-20 backdrop-blur" style="width: 120px; height: 120px;"></div>
+                    </div>
+                    <div class="position-absolute top-0 end-0 translate-middle animate__animated animate__pulse animate__infinite" style="animation-duration: 4s;">
+                        <div class="rounded-circle bg-info bg-opacity-20 backdrop-blur" style="width: 160px; height: 160px;"></div>
+                    </div>
+
+                    <!-- Floating Card Decorations with Animations -->
+                    <div class="position-absolute" style="top: -40px; right: 40px; z-index: 2; transform: rotate(-15deg);">
+                        <div class="card border-0 rounded-3 shadow bg-warning bg-gradient p-3 hover-float animate__animated animate__bounceIn animate__delay-1s" style="width: 150px;">
+                            <div class="text-center text-dark">
+                                <i class="fas fa-brain mb-2 fa-lg"></i>
+                                <p class="mb-0 small fw-medium">Memory Science</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="position-absolute" style="bottom: -30px; left: 30px; z-index: 2; transform: rotate(10deg);">
+                        <div class="card border-0 rounded-3 shadow bg-success bg-gradient p-3 hover-float animate__animated animate__bounceIn animate__delay-2s" style="width: 150px;">
+                            <div class="text-center text-white">
+                                <i class="fas fa-chart-line mb-2 fa-lg"></i>
+                                <p class="mb-0 small fw-medium">Track Progress</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
-    <div class="col-md-4">
-        <div class="card h-100 shadow-sm">
-            <div class="card-body text-center">
-                <i class="fas fa-trophy fa-3x text-warning mb-3"></i>
-                <h3>Earn Achievements</h3>
-                <p>Stay motivated with badges and track your progress as you build your knowledge.</p>
+</section>
+
+<!-- Features Section -->
+<section class="container py-5">
+    <div class="row text-center mb-5">
+        <div class="col-lg-8 mx-auto">
+            <h2 class="display-5 fw-bold">Learn Anything, Remember Everything</h2>
+            <p class="lead text-secondary">Our scientifically-proven system helps you retain information longer</p>
+        </div>
+    </div>
+    
+    <div class="row g-4">
+        <div class="col-md-4">
+            <div class="card h-100 border-0 rounded-4 shadow hover-float">
+                <div class="card-body p-5 text-center">
+                    <div class="feature-icon bg-primary bg-gradient text-white rounded-circle mb-4 mx-auto d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
+                        <i class="fas fa-brain fa-2x"></i>
+                    </div>
+                    <h3 class="h4 fw-bold">Spaced Repetition</h3>
+                    <p class="text-secondary">Review cards at scientifically optimized intervals to maximize long-term retention while minimizing study time.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100 border-0 rounded-4 shadow hover-float">
+                <div class="card-body p-5 text-center">
+                    <div class="feature-icon bg-success bg-gradient text-white rounded-circle mb-4 mx-auto d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
+                        <i class="fas fa-chart-line fa-2x"></i>
+                    </div>
+                    <h3 class="h4 fw-bold">Track Progress</h3>
+                    <p class="text-secondary">Visualize your learning journey with beautiful analytics and earn achievements as you reach milestones.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100 border-0 rounded-4 shadow hover-float">
+                <div class="card-body p-5 text-center">
+                    <div class="feature-icon bg-warning bg-gradient text-dark rounded-circle mb-4 mx-auto d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
+                        <i class="fas fa-mobile-alt fa-2x"></i>
+                    </div>
+                    <h3 class="h4 fw-bold">Study Anywhere</h3>
+                    <p class="text-secondary">Access your flashcards on any device with our responsive design—perfect for studying on the go.</p>
+                </div>
             </div>
         </div>
     </div>
-    <div class="col-md-4">
-        <div class="card h-100 shadow-sm">
-            <div class="card-body text-center">
-                <i class="fas fa-chart-line fa-3x text-success mb-3"></i>
-                <h3>Track Progress</h3>
-                <p>Visualize your learning journey with detailed statistics and performance metrics.</p>
+    
+    <!-- Testimonial -->
+    <div class="row mt-5">
+        <div class="col-lg-10 mx-auto">
+            <div class="card border-0 rounded-4 shadow bg-gradient p-3 p-md-5" style="background: linear-gradient(135deg, #f5f7fa 0%, #e4ecfb 100%);">
+                <div class="card-body text-center">
+                    <i class="fas fa-quote-left fa-3x text-primary opacity-25 mb-3"></i>
+                    <p class="lead fst-italic mb-4">"This flashcard system completely transformed how I study. I've reduced my study time by half while retaining more information than ever before!"</p>
+                    <div class="d-flex justify-content-center align-items-center">
+                        <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center me-3" style="width: 50px; height: 50px;">
+                            <span class="fw-bold">JS</span>
+                        </div>
+                        <div class="text-start">
+                            <h5 class="mb-0 fw-bold">Jamie Smith</h5>
+                            <p class="text-muted mb-0">Medical Student</p>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
-</div>
+</section>
+
+<!-- Call to Action -->
+<section class="container-fluid bg-gradient py-5 mt-5 rounded-4 shadow" style="background: linear-gradient(135deg, #4a6cf7 0%, #00d2ff 100%);">
+    <div class="container py-5">
+        <div class="row justify-content-center text-center">
+            <div class="col-lg-8">
+                <h2 class="display-5 fw-bold mb-4" style="color: #1a202c; text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);">Ready to Transform Your Learning?</h2>
+                <div class="d-flex gap-3 flex-wrap justify-content-center">
+                    <a href="{{ url_for('register') }}" class="btn btn-lg px-5 py-3 rounded-pill fw-medium shadow hover-scale" style="background-color: #ffffff; color: #4a6cf7;">
+                        <i class="fas fa-user-plus me-2"></i>Sign Up Free
+                    </a>
+                    <a href="{{ url_for('demo_flashcards') }}" class="btn btn-lg px-5 py-3 rounded-pill fw-medium shadow hover-scale" style="background-color: #ffffff; color: #4a6cf7;">
+                        <i class="fas fa-play me-2"></i>Try Demo
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<style>
+    section.bg-gradient {
+        background-color: #4a6cf7; /* Fallback solid color if gradient fails */
+    }
+    .hover-scale {
+        transition: transform 0.2s ease;
+    }
+    
+    .hover-scale:hover {
+        transform: scale(1.05);
+    }
+    
+    .hover-float {
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    
+    .hover-float:hover {
+        transform: translateY(-6px);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.15) !important;
+    }
+    
+    .backdrop-blur {
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+    }
+
+
+    /* New hover effect for the Try Demo button */
+    a.btn[href*='demo_flashcards']:hover {
+        background-color: #f0f0f0; /* Slightly darker white on hover */
+        color: #3a5ce5; /* Slightly darker blue on hover */
+    }
+</style>
 {% endblock %}

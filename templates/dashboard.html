@@ -1,62 +1,378 @@
 {% extends "layout.html" %}
 
+{% block extra_css %}
+<style>
+/* Modern Dashboard Styles */
+.dashboard-header {
+    background: linear-gradient(135deg, #4361ee 0%, #4cc9f0 100%);
+    border-radius: 16px;
+    padding: 2.5rem;
+    margin-bottom: 1.5rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.dashboard-header::before {
+    content: "";
+    position: absolute;
+    width: 300px;
+    height: 300px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+    top: -150px;
+    right: -100px;
+}
+
+.dashboard-header::after {
+    content: "";
+    position: absolute;
+    width: 200px;
+    height: 200px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+    bottom: -100px;
+    left: -50px;
+}
+
+.dashboard-title {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 0.75rem;
+    color: white;
+    position: relative;
+    z-index: 1;
+}
+
+.dashboard-subtitle {
+    font-size: 1.2rem;
+    color: rgba(255, 255, 255, 0.85);
+    position: relative;
+    z-index: 1;
+}
+
+.stat-card {
+    border-radius: 16px;
+    border: none;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    height: 100%;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.06);
+}
+
+.stat-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 16px 30px rgba(0, 0, 0, 0.1);
+}
+
+.stat-card-blue {
+    background: linear-gradient(135deg, #3a47d5 0%, #5d6cf9 100%);
+}
+
+.stat-card-green {
+    background: linear-gradient(135deg, #2ecc71 0%, #4aef8e 100%);
+}
+
+.stat-card-yellow {
+    background: linear-gradient(135deg, #f9ca24 0%, #ffde59 100%);
+}
+
+.stat-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 1rem;
+}
+
+.stat-card-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 0;
+}
+
+.stat-card-icon {
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 12px;
+    backdrop-filter: blur(5px);
+}
+
+.stat-card-value {
+    font-size: 3rem;
+    font-weight: 700;
+    margin: 0.5rem 0 1.5rem;
+}
+
+.stat-card-blue .stat-card-icon, .stat-card-green .stat-card-icon {
+    color: white;
+}
+
+.stat-card-yellow .stat-card-icon, .stat-card-yellow .stat-card-title, .stat-card-yellow .stat-card-value {
+    color: #333;
+}
+
+.action-card, .stat-chart-card {
+    border-radius: 16px;
+    border: none;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.06);
+    height: 100%;
+    overflow: hidden;
+}
+
+.card-header-modern {
+    background: none;
+    border-bottom: none;
+    padding: 1.5rem 1.5rem 0;
+}
+
+.card-header-title {
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 0;
+    color: #333;
+}
+
+.card-body-modern {
+    padding: 1.5rem;
+}
+
+.action-button {
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+    font-weight: 600;
+    transition: all 0.3s;
+    position: relative;
+    overflow: hidden;
+    z-index: 1;
+    border: none;
+}
+
+.action-button::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    transition: left 0.3s;
+    z-index: -1;
+    opacity: 0.8;
+}
+
+.action-button:hover::before {
+    left: 0;
+}
+
+.btn-blue {
+    background: linear-gradient(135deg, #3a47d5 0%, #5d6cf9 100%);
+    color: white;
+}
+
+.btn-blue::before {
+    background: linear-gradient(135deg, #5d6cf9 0%, #3a47d5 100%);
+}
+
+.btn-green {
+    background: linear-gradient(135deg, #2ecc71 0%, #4aef8e 100%);
+    color: white;
+}
+
+.btn-green::before {
+    background: linear-gradient(135deg, #4aef8e 0%, #2ecc71 100%);
+}
+
+.btn-gray {
+    background: linear-gradient(135deg, #64748b 0%, #94a3b8 100%);
+    color: white;
+}
+
+.btn-gray::before {
+    background: linear-gradient(135deg, #94a3b8 0%, #64748b 100%);
+}
+
+.btn-red {
+    background: linear-gradient(135deg, #e74c3c 0%, #ff7675 100%);
+    color: white;
+}
+
+.btn-red::before {
+    background: linear-gradient(135deg, #ff7675 0%, #e74c3c 100%);
+}
+
+.stats-text {
+    color: #64748b;
+    margin-bottom: 0.5rem;
+    display: flex;
+    justify-content: space-between;
+}
+
+.stats-value {
+    color: #333;
+    font-weight: 600;
+}
+
+.stats-list {
+    background: #f8fafc;
+    border-radius: 12px;
+    padding: 1.5rem;
+}
+
+.chart-container {
+    position: relative;
+    height: 250px;
+}
+
+.modal-content-modern {
+    border: none;
+    border-radius: 16px;
+    overflow: hidden;
+}
+
+.modal-header-modern {
+    background: linear-gradient(135deg, #f9ca24 0%, #ffde59 100%);
+    border-bottom: none;
+    padding: 1.5rem;
+}
+
+.modal-body-modern {
+    padding: 1.5rem;
+}
+
+.achievement-card {
+    border-radius: 16px;
+    border: none;
+    overflow: hidden;
+    transition: all 0.3s;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.06);
+}
+
+.achievement-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+}
+
+.achievement-icon {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #f9ca24 0%, #ffde59 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1.25rem;
+}
+
+.achievement-date {
+    display: inline-block;
+    background: #f8fafc;
+    padding: 0.5rem 1rem;
+    border-radius: 50px;
+    font-size: 0.875rem;
+    color: #64748b;
+    margin-top: 1rem;
+}
+
+.empty-achievement {
+    background: #f8fafc;
+    border-radius: 16px;
+    padding: 3rem 2rem;
+    text-align: center;
+}
+
+.empty-icon {
+    width: 100px;
+    height: 100px;
+    background: #f1f5f9;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1.5rem;
+    color: #94a3b8;
+}
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="row mb-4">
-    <div class="col">
-        <h1>Welcome, {{ current_user.username }}!</h1>
-        <p class="lead">Your personal flashcard dashboard</p>
+<!-- Modern Dashboard Header -->
+<div class="dashboard-header">
+    <h1 class="dashboard-title">Welcome, {{ current_user.username }}!</h1>
+    <p class="dashboard-subtitle">Your personal flashcard dashboard</p>
+</div>
+
+<!-- Stats Cards -->
+<div class="row g-4 mb-4">
+    <div class="col-md-4">
+        <div class="card stat-card stat-card-blue text-white">
+            <div class="card-body p-4">
+                <div class="stat-card-header">
+                    <h5 class="stat-card-title">Your Flashcards</h5>
+                    <div class="stat-card-icon">
+                        <i class="fas fa-layer-group fa-lg"></i>
+                    </div>
+                </div>
+                <h2 class="stat-card-value">{{ user_cards }}</h2>
+                <a href="{{ url_for('view_cards') }}" class="btn btn-light rounded-pill px-4">View All Cards</a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card stat-card stat-card-green text-white">
+            <div class="card-body p-4">
+                <div class="stat-card-header">
+                    <h5 class="stat-card-title">Cards Due Today</h5>
+                    <div class="stat-card-icon">
+                        <i class="fas fa-clock fa-lg"></i>
+                    </div>
+                </div>
+                <h2 class="stat-card-value">{{ reviews_today }}</h2>
+                <a href="{{ url_for('study') }}" class="btn btn-light rounded-pill px-4">Study Now</a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card stat-card stat-card-yellow">
+            <div class="card-body p-4">
+                <div class="stat-card-header">
+                    <h5 class="stat-card-title">Achievements</h5>
+                    <div class="stat-card-icon">
+                        <i class="fas fa-trophy fa-lg"></i>
+                    </div>
+                </div>
+                <h2 class="stat-card-value">{{ achievements|length }}</h2>
+                <button class="btn btn-dark rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#achievementsModal">
+                    View Achievements
+                </button>
+            </div>
+        </div>
     </div>
 </div>
 
-<div class="row mb-4">
-    <div class="col-md-4">
-        <div class="card bg-primary text-white h-100">
-            <div class="card-body">
-                <h5 class="card-title">Your Flashcards</h5>
-                <p class="display-4">{{ user_cards }}</p>
-                <a href="{{ url_for('view_cards') }}" class="btn btn-light mt-2">View All Cards</a>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card bg-success text-white h-100">
-            <div class="card-body">
-                <h5 class="card-title">Cards Due Today</h5>
-                <p class="display-4">{{ reviews_today }}</p>
-                <a href="{{ url_for('study') }}" class="btn btn-light mt-2">Study Now</a>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card bg-warning h-100">
-            <div class="card-body">
-                <h5 class="card-title">Achievements</h5>
-                <p class="display-4">{{ achievements|length }}</p>
-                <button class="btn btn-dark mt-2" data-bs-toggle="modal" data-bs-target="#achievementsModal">View Achievements</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="row mb-4">
+<div class="row g-4 mb-4">
+    <!-- Quick Actions Card -->
     <div class="col-md-6">
-        <div class="card h-100">
-            <div class="card-header">
-                <h5 class="mb-0">Quick Actions</h5>
+        <div class="card action-card">
+            <div class="card-header-modern">
+                <h5 class="card-header-title">Quick Actions</h5>
             </div>
-            <div class="card-body">
-                <div class="d-grid gap-2">
-                    <a href="{{ url_for('create_card') }}" class="btn btn-primary">
+            <div class="card-body-modern">
+                <div class="d-grid gap-3">
+                    <a href="{{ url_for('create_card') }}" class="btn action-button btn-blue">
                         <i class="fas fa-plus-circle me-2"></i>Create New Flashcard
                     </a>
-                    <a href="{{ url_for('study') }}" class="btn btn-success">
+                    <a href="{{ url_for('study') }}" class="btn action-button btn-green">
                         <i class="fas fa-graduation-cap me-2"></i>Start Studying
                     </a>
-                    <a href="{{ url_for('profile') }}" class="btn btn-secondary">
+                    <a href="{{ url_for('profile') }}" class="btn action-button btn-gray">
                         <i class="fas fa-user-edit me-2"></i>Edit Profile
                     </a>
                     {% if is_admin %}
-                    <a href="{{ url_for('admin_dashboard') }}" class="btn btn-danger">
+                    <a href="{{ url_for('admin_dashboard') }}" class="btn action-button btn-red">
                         <i class="fas fa-shield-alt me-2"></i>Admin Dashboard
                     </a>
                     {% endif %}
@@ -65,13 +381,63 @@
         </div>
     </div>
     
+    <!-- Statistics Card -->
     <div class="col-md-6">
-        <div class="card h-100">
-            <div class="card-header">
-                <h5 class="mb-0">Study Progress</h5>
+        <div class="card stat-chart-card">
+            <div class="card-header-modern">
+                <h5 class="card-header-title">Flashcard Statistics</h5>
             </div>
-            <div class="card-body">
-                <canvas id="studyProgressChart" width="400" height="250"></canvas>
+            <div class="card-body-modern">
+                <div class="row">
+                    <div class="col-md-5">
+                        <div class="stats-list mb-3">
+                            <p class="stats-text">
+                                <span>Total Cards:</span>
+                                <span class="stats-value">{{ user_cards }}</span>
+                            </p>
+                            <p class="stats-text">
+                                <span>Due Today:</span>
+                                <span class="stats-value">{{ reviews_today }}</span>
+                            </p>
+                            <p class="stats-text">
+                                <span>Completion Rate:</span>
+                                <span class="stats-value">{{ ((user_cards - reviews_today) / user_cards * 100)|round|int if user_cards > 0 else 0 }}%</span>
+                            </p>
+                            <p class="stats-text">
+                                <span>Achievements:</span>
+                                <span class="stats-value">{{ achievements|length }}</span>
+                            </p>
+                        </div>
+                    </div>
+                    <div class="col-md-7">
+                        <canvas id="reviewStatusChart" height="200"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Card -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card stat-chart-card">
+            <div class="card-header-modern">
+                <h5 class="card-header-title">Learning Progress</h5>
+            </div>
+            <div class="card-body-modern">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="chart-container">
+                            <canvas id="progressChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="chart-container">
+                            <canvas id="difficultyChart"></canvas>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -79,71 +445,237 @@
 
 <!-- Achievements Modal -->
 <div class="modal fade" id="achievementsModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Your Achievements</h5>
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content modal-content-modern">
+            <div class="modal-header modal-header-modern">
+                <h5 class="modal-title"><i class="fas fa-trophy me-2"></i>Your Achievements</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body modal-body-modern">
                 {% if achievements %}
                 <div class="row row-cols-1 row-cols-md-3 g-4">
                     {% for user_achievement in achievements %}
                     <div class="col">
-                        <div class="card h-100 text-center">
-                            <div class="card-body">
-                                <img src="{{ url_for('static', filename='images/' + user_achievement.achievement.badge_image) }}" 
-                                     class="mb-3" alt="Badge" width="64">
+                        <div class="card achievement-card h-100">
+                            <div class="card-body text-center p-4">
+                                <div class="achievement-icon">
+                                    <img src="{{ url_for('static', filename='images/' + user_achievement.achievement.badge_image) }}" 
+                                         alt="Badge" width="40">
+                                </div>
                                 <h5 class="card-title">{{ user_achievement.achievement.name }}</h5>
-                                <p class="card-text">{{ user_achievement.achievement.description }}</p>
-                                <p class="text-muted">Earned on: {{ user_achievement.date_earned.strftime('%Y-%m-%d') }}</p>
+                                <p class="card-text text-muted">{{ user_achievement.achievement.description }}</p>
+                                <div class="achievement-date">
+                                    <i class="far fa-calendar-alt me-2"></i>
+                                    {{ user_achievement.date_earned.strftime('%b %d, %Y') }}
+                                </div>
                             </div>
                         </div>
                     </div>
                     {% endfor %}
                 </div>
                 {% else %}
-                <div class="text-center py-5">
-                    <i class="fas fa-award fa-4x text-muted mb-3"></i>
+                <div class="empty-achievement">
+                    <div class="empty-icon">
+                        <i class="fas fa-award fa-3x"></i>
+                    </div>
                     <h4>No achievements yet</h4>
-                    <p>Start studying and earning badges!</p>
+                    <p class="text-muted">Start studying regularly to earn badges and track your progress!</p>
+                    <a href="{{ url_for('study') }}" class="btn btn-blue rounded-pill px-4 mt-3">
+                        <i class="fas fa-graduation-cap me-2"></i>Start Studying
+                    </a>
                 </div>
                 {% endif %}
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
 
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    // Sample data - in a real app, this would come from the backend
-    const ctx = document.getElementById('studyProgressChart').getContext('2d');
-    const studyProgressChart = new Chart(ctx, {
-        type: 'line',
+document.addEventListener('DOMContentLoaded', function() {
+    // Set Chart.js defaults for all charts
+    Chart.defaults.font.family = "'Inter', sans-serif";
+    Chart.defaults.font.size = 12;
+    Chart.defaults.plugins.tooltip.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+    Chart.defaults.plugins.tooltip.padding = 12;
+    Chart.defaults.plugins.tooltip.cornerRadius = 8;
+    Chart.defaults.plugins.tooltip.titleFont = {size: 14, weight: 'bold'};
+    Chart.defaults.plugins.tooltip.bodyFont = {size: 13};
+    Chart.defaults.plugins.tooltip.displayColors = false;
+    
+    // Review Status Chart - Shows current cards due vs completed
+    const reviewCtx = document.getElementById('reviewStatusChart').getContext('2d');
+    const reviewStatusChart = new Chart(reviewCtx, {
+        type: 'doughnut',
         data: {
-            labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+            labels: ['Completed', 'Due Today'],
             datasets: [{
-                label: 'Cards Studied',
-                data: [12, 19, 5, 8, 15, 10, 7],
-                backgroundColor: 'rgba(54, 162, 235, 0.2)',
-                borderColor: 'rgba(54, 162, 235, 1)',
-                borderWidth: 2,
-                tension: 0.3
+                data: [{{ user_cards - reviews_today }}, {{ reviews_today }}],
+                backgroundColor: [
+                    'rgba(46, 204, 113, 0.9)',
+                    'rgba(255, 159, 64, 0.9)'
+                ],
+                borderColor: [
+                    'rgba(46, 204, 113, 1)',
+                    'rgba(255, 159, 64, 1)'
+                ],
+                borderWidth: 2
             }]
         },
         options: {
-            scales: {
-                y: {
-                    beginAtZero: true
+            cutout: '70%',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        boxWidth: 12,
+                        padding: 15,
+                        usePointStyle: true,
+                        pointStyle: 'circle'
+                    }
                 }
             }
         }
     });
-</script>
-{% endblock %}
 
+    // Simulated learning progress over time (based on user's card count)
+    const progressCtx = document.getElementById('progressChart').getContext('2d');
+    
+    // Calculate simulated progress data based on user's actual card count
+    const cardCount = {{ user_cards }};
+    const daysBack = 7; // Show a week of history
+    const progressData = [];
+    const progressLabels = [];
+    
+    // Create simulated historical data that ends with current card count
+    let simulatedCount = Math.max(0, cardCount - Math.floor(cardCount * 0.3));
+    for (let i = daysBack; i >= 0; i--) {
+        // Calculate a date string for each point
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        progressLabels.push(date.toLocaleDateString('en-US', {month: 'short', day: 'numeric'}));
+        
+        // Add some random growth that ends at current card count
+        if (i > 0) {
+            progressData.push(simulatedCount);
+            simulatedCount += Math.floor(Math.random() * 5) + 1;
+        } else {
+            // Last point shows actual current count
+            progressData.push(cardCount);
+        }
+    }
+    
+    // Create gradient for chart
+    const progressGradient = progressCtx.createLinearGradient(0, 0, 0, 250);
+    progressGradient.addColorStop(0, 'rgba(58, 71, 213, 0.6)');
+    progressGradient.addColorStop(1, 'rgba(58, 71, 213, 0.0)');
+    
+    const progressChart = new Chart(progressCtx, {
+        type: 'line',
+        data: {
+            labels: progressLabels,
+            datasets: [{
+                label: 'Cards Created',
+                data: progressData,
+                backgroundColor: progressGradient,
+                borderColor: 'rgba(58, 71, 213, 1)',
+                borderWidth: 3,
+                pointBackgroundColor: '#fff',
+                pointBorderColor: 'rgba(58, 71, 213, 1)',
+                pointBorderWidth: 2,
+                pointRadius: 5,
+                pointHoverRadius: 7,
+                tension: 0.4,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    grid: {
+                        display: false
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        precision: 0
+                    },
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                }
+            }
+        }
+    });
+    
+    // Difficulty Distribution Chart - simulated data based on user's card count
+    const diffCtx = document.getElementById('difficultyChart').getContext('2d');
+    
+    // Calculate simulated difficulty distribution
+    const easyCards = Math.floor(cardCount * 0.35);
+    const mediumCards = Math.floor(cardCount * 0.4);
+    const hardCards = cardCount - easyCards - mediumCards;
+    
+    const difficultyChart = new Chart(diffCtx, {
+        type: 'bar',
+        data: {
+            labels: ['Easy', 'Medium', 'Hard'],
+            datasets: [{
+                label: 'Cards by Difficulty',
+                data: [easyCards, mediumCards, hardCards],
+                backgroundColor: [
+                    'rgba(46, 204, 113, 0.8)',
+                    'rgba(249, 202, 36, 0.8)',
+                    'rgba(231, 76, 60, 0.8)'
+                ],
+                borderColor: [
+                    'rgba(46, 204, 113, 1)',
+                    'rgba(249, 202, 36, 1)',
+                    'rgba(231, 76, 60, 1)'
+                ],
+                borderWidth: 2,
+                borderRadius: 8,
+                maxBarThickness: 50
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    grid: {
+                        display: false
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        precision: 0
+                    },
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                }
+            }
+        }
+    });
+});
+</script>
 {% endblock %}

@@ -1,51 +1,332 @@
 {% extends "layout.html" %}
 
-{% block content %}
-<div class="row mb-4">
-    <div class="col">
-        <h1>Edit User</h1>
-        <p class="lead">Update user information and role</p>
-    </div>
-</div>
+{% block extra_css %}
+<style>
+    .admin-container {
+        max-width: 900px;
+        margin: 0 auto;
+    }
+    
+    .page-header {
+        background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+        padding: 2.5rem;
+        border-radius: 16px;
+        margin-bottom: 2rem;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    }
+    
+    .page-title {
+        color: white;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+    
+    .page-subtitle {
+        color: rgba(255, 255, 255, 0.85);
+        font-weight: 300;
+    }
+    
+    .breadcrumb-item a {
+        color: rgba(255, 255, 255, 0.6);
+        text-decoration: none;
+    }
+    
+    .breadcrumb-item a:hover {
+        color: white;
+    }
+    
+    .breadcrumb-item.active {
+        color: rgba(255, 255, 255, 0.85);
+    }
+    
+    .breadcrumb-item + .breadcrumb-item::before {
+        color: rgba(255, 255, 255, 0.4);
+    }
+    
+    .user-card {
+        border: none;
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+    }
+    
+    .user-card-header {
+        border-bottom: none;
+        background-color: white;
+        padding: 1.5rem;
+    }
+    
+    .avatar-container {
+        width: 96px;
+        height: 96px;
+        position: relative;
+    }
+    
+    .avatar-circle {
+        width: 96px;
+        height: 96px;
+        background: linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%);
+        border-radius: 50%;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2.25rem;
+        font-weight: 700;
+        letter-spacing: 1px;
+    }
+    
+    .form-group {
+        margin-bottom: 1.75rem;
+    }
+    
+    .form-label {
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+        color: #1e293b;
+    }
+    
+    .form-control, .form-select {
+        border-radius: 12px;
+        border-color: #e2e8f0;
+        padding: 0.75rem 1rem;
+        font-size: 1rem;
+        box-shadow: none;
+        transition: all 0.2s;
+    }
+    
+    .form-control:focus, .form-select:focus {
+        border-color: #6366F1;
+        box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+    }
+    
+    .input-group-text {
+        background-color: #f8fafc;
+        border-color: #e2e8f0;
+        color: #64748b;
+    }
+    
+    .input-icon {
+        border-top-left-radius: 12px;
+        border-bottom-left-radius: 12px;
+    }
+    
+    .input-with-icon {
+        border-top-left-radius: 0;
+        border-bottom-left-radius: 0;
+    }
+    
+    .btn {
+        border-radius: 12px;
+        padding: 0.75rem 1.5rem;
+        font-weight: 500;
+        transition: all 0.2s;
+    }
+    
+    .btn-primary {
+        background: linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%);
+        border: none;
+    }
+    
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+    }
+    
+    .btn-outline-secondary {
+        border-color: #e2e8f0;
+        color: #64748b;
+    }
+    
+    .btn-outline-secondary:hover {
+        background-color: #f8fafc;
+        color: #1e293b;
+    }
+    
+    .role-badge {
+        padding: 0.5rem 1rem;
+        font-size: 0.875rem;
+        border-radius: 50rem;
+        font-weight: 500;
+    }
+    
+    .user-card-footer {
+        background-color: #f8fafc;
+        border-top: 1px solid #f1f5f9;
+        padding: 1.25rem 1.5rem;
+    }
+    
+    .delete-btn {
+        background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
+        border: none;
+        color: white;
+    }
+    
+    .delete-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+    }
 
-<div class="row justify-content-center">
-    <div class="col-lg-6">
-        <div class="card shadow">
-            <div class="card-header bg-primary text-white">
-                <h4 class="mb-0">User Details</h4>
+    /* Delete modal styling */
+    .modal-content {
+        border: none;
+        border-radius: 16px;
+        overflow: hidden;
+    }
+    
+    .modal-header {
+        background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
+        border-bottom: none;
+        padding: 1.5rem;
+    }
+    
+    .modal-body {
+        padding: 2.5rem;
+    }
+    
+    .modal-footer {
+        border-top: none;
+        padding: 1.25rem 1.5rem;
+        background-color: #f8fafc;
+    }
+    
+    .warning-icon {
+        width: 96px;
+        height: 96px;
+        border-radius: 50%;
+        background: rgba(239, 68, 68, 0.1);
+        color: #ef4444;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+    <!-- Page Header -->
+    <div class="page-header">
+        <h1 class="page-title">
+            <i class="fas fa-user-edit me-3"></i>Edit User
+        </h1>
+        <p class="page-subtitle">Update user information and modify access permissions</p>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb mb-0">
+                <li class="breadcrumb-item"><a href="{{ url_for('admin_dashboard') }}">Admin Dashboard</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Edit User</li>
+            </ol>
+        </nav>
+    </div>
+
+    <!-- User Card -->
+    <div class="user-card">
+        <div class="user-card-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center">
+                    <div class="avatar-container me-4">
+                        <div class="avatar-circle">
+                            {{ user.username[:2].upper() }}
+                        </div>
+                    </div>
+                    <div>
+                        <h5 class="fw-bold mb-1">{{ user.username }}</h5>
+                        <p class="text-muted mb-2">{{ user.email }}</p>
+                        <span class="role-badge {% if user.role.value == 'admin' %}bg-danger{% elif user.role.value == 'user' %}bg-primary{% else %}bg-secondary{% endif %}">
+                            {{ user.role.value }}
+                        </span>
+                        <span class="ms-2 badge bg-light text-dark role-badge">
+                            ID: {{ user.id }}
+                        </span>
+                    </div>
+                </div>
+                <div>
+                    <span class="text-muted d-flex align-items-center">
+                        <i class="fas fa-calendar-alt me-2"></i>
+                        Joined {{ user.date_joined.strftime('%b %d, %Y') }}
+                    </span>
+                </div>
             </div>
-            <div class="card-body">
-                <form method="POST" action="{{ url_for('admin_edit_user', user_id=user.id) }}">
-                    <div class="mb-3">
-                        <label for="username" class="form-label">Username</label>
-                        <input type="text" class="form-control" id="username" name="username" value="{{ user.username }}" required>
+        </div>
+        
+        <div class="p-4">
+            <form method="POST" action="{{ url_for('admin_edit_user', user_id=user.id) }}">
+                <div class="form-group">
+                    <label for="username" class="form-label">Username</label>
+                    <div class="input-group">
+                        <span class="input-group-text input-icon"><i class="fas fa-user"></i></span>
+                        <input type="text" class="form-control input-with-icon" id="username" name="username" value="{{ user.username }}" required>
                     </div>
-                    
-                    <div class="mb-3">
-                        <label for="email" class="form-label">Email</label>
-                        <input type="email" class="form-control" id="email" name="email" value="{{ user.email }}" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="email" class="form-label">Email</label>
+                    <div class="input-group">
+                        <span class="input-group-text input-icon"><i class="fas fa-envelope"></i></span>
+                        <input type="email" class="form-control input-with-icon" id="email" name="email" value="{{ user.email }}" required>
                     </div>
-                    
-                    <div class="mb-3">
-                        <label for="role" class="form-label">Role</label>
-                        <select class="form-select" id="role" name="role" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="role" class="form-label">Role</label>
+                    <div class="input-group">
+                        <span class="input-group-text input-icon"><i class="fas fa-shield-alt"></i></span>
+                        <select class="form-select input-with-icon" id="role" name="role" required>
                             {% for role in roles %}
                                 <option value="{{ role.value }}" {% if user.role == role %}selected{% endif %}>{{ role.value }}</option>
                             {% endfor %}
                         </select>
                     </div>
-                    
-                    <div class="d-grid gap-2">
-                        <button type="submit" class="btn btn-primary">Save Changes</button>
-                        <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-secondary">Cancel</a>
+                    <div class="form-text mt-2">
+                        <i class="fas fa-info-circle me-1 text-primary"></i> 
+                        The user role determines access permissions throughout the application.
                     </div>
-                </form>
-            </div>
-            <div class="card-footer">
-                <div class="text-muted">
-                    <strong>User ID:</strong> {{ user.id }}<br>
-                    <strong>Joined:</strong> {{ user.date_joined.strftime('%Y-%m-%d %H:%M:%S') }}
                 </div>
+                
+                <div class="d-flex justify-content-end gap-3 mt-4">
+                    <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-times me-2"></i>Cancel
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-2"></i>Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+        
+        <div class="user-card-footer text-end">
+            <button type="button" class="btn delete-btn" data-bs-toggle="modal" data-bs-target="#deleteUserModal">
+                <i class="fas fa-trash-alt me-2"></i>Delete User
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Delete User Modal -->
+<div class="modal fade" id="deleteUserModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title text-white fw-bold">Delete User</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center">
+                <div class="warning-icon">
+                    <i class="fas fa-exclamation-triangle fa-3x"></i>
+                </div>
+                <h4 class="fw-bold mb-3">Are you sure you want to delete this user?</h4>
+                <p class="mb-1">This action cannot be undone and will delete all data associated with:</p>
+                <p class="fw-bold fs-5 mb-0">{{ user.username }}</p>
+                <p class="text-muted">{{ user.email }}</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form action="{{ url_for('admin_delete_user', user_id=user.id) }}" method="POST" class="d-inline">
+                    <button type="submit" class="btn delete-btn">
+                        <i class="fas fa-trash-alt me-2"></i>Delete Permanently
+                    </button>
+                </form>
             </div>
         </div>
     </div>

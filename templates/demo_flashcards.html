@@ -1,0 +1,381 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<!-- Demo Header -->
+<section class="container-fluid bg-gradient py-5" style="background: linear-gradient(135deg, #4a6cf7 0%, #00d2ff 100%);">
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 mx-auto text-center text-dark">
+                <h1 class="display-4 fw-bold">Experience Flashcards</h1>
+                <p class="lead opacity-90">Try our intuitive learning system with these sample cards</p>
+                <!-- ... -->
+            </div>
+        </div>
+    </div>
+</section>
+
+
+<div class="container py-5">
+    <!-- Study Area -->
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <!-- Filters and Mode Controls -->
+            <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+                <div class="dropdown">
+                    <button class="btn btn-outline-primary dropdown-toggle rounded-pill shadow-sm" type="button" id="categoryDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="fas fa-filter me-2"></i>Categories
+                    </button>
+                    <ul class="dropdown-menu shadow border-0 rounded-3" aria-labelledby="categoryDropdown">
+                        <li><button class="dropdown-item category-btn active" data-category="all">All Categories</button></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><button class="dropdown-item category-btn" data-category="Geography">Geography</button></li>
+                        <li><button class="dropdown-item category-btn" data-category="Chemistry">Chemistry</button></li>
+                        <li><button class="dropdown-item category-btn" data-category="Literature">Literature</button></li>
+                        <li><button class="dropdown-item category-btn" data-category="Mathematics">Mathematics</button></li>
+                        <li><button class="dropdown-item category-btn" data-category="Biology">Biology</button></li>
+                    </ul>
+                </div>
+            </div>
+            
+            <!-- Card Progress -->
+            <div class="progress mb-4 bg-light" style="height: 8px; border-radius: 4px;">
+                <div id="progress-bar" class="progress-bar bg-primary" role="progressbar" style="width: 20%" aria-valuenow="20" aria-valuemin="0" aria-valuemax="100"></div>
+            </div>
+            
+            <!-- Flashcard Container with Modern Design -->
+            <div class="flashcard-container" id="flashcard-container">
+                <div class="position-relative">
+                    <!-- Card Counter Badge -->
+                    <div class="position-absolute top-0 end-0 m-3 z-1">
+                        <span id="card-counter" class="badge rounded-pill bg-white text-primary shadow-sm fs-6 px-3 py-2">1/5</span>
+                    </div>
+                    
+                    <!-- Actual Flashcard -->
+                    <div id="flashcard" class="flashcard rounded-4 shadow-lg mb-4" data-front="true">
+                        <!-- Card content will be injected here -->
+                    </div>
+                    
+                    <!-- Card Navigation -->
+                    <div class="d-flex justify-content-between align-items-center mt-4">
+                        <button id="prev-btn" class="btn btn-lg btn-light shadow-sm rounded-circle d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;" disabled>
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                        
+                        <button id="flip-btn" class="btn btn-lg btn-primary shadow px-4 py-2 rounded-pill">
+                            <i class="fas fa-sync-alt me-2"></i>Flip Card
+                        </button>
+                        
+                        <button id="next-btn" class="btn btn-lg btn-light shadow-sm rounded-circle d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Demo Info Card -->
+            <div class="card border-0 bg-light rounded-4 shadow mt-5">
+                <div class="card-body p-4">
+                    <div class="d-flex align-items-center flex-wrap flex-md-nowrap gap-4">
+                        <div class="bg-primary bg-gradient text-white rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" style="width: 60px; height: 60px;">
+                            <i class="fas fa-info fa-xl"></i>
+                        </div>
+                        <div>
+                            <h4 class="fw-bold">This is just a demo!</h4>
+                            <p class="mb-0">Create an account to make your own flashcards, track your progress, and master any subject.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-end gap-3 mt-4 flex-wrap">
+                        <a href="{{ url_for('register') }}" class="btn btn-primary rounded-pill px-4 py-2 shadow-sm">Sign Up Free</a>
+                        <a href="{{ url_for('login') }}" class="btn btn-outline-secondary rounded-pill px-4 py-2">Log In</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Feature Highlights -->
+<section class="bg-light py-5 mt-5">
+    <div class="container">
+        <div class="row text-center">
+            <div class="col-12 mb-5">
+                <h2 class="fw-bold">Full Version Features</h2>
+                <p class="lead text-muted">Create an account to unlock all these great features</p>
+            </div>
+        </div>
+        <div class="row g-4">
+            <div class="col-md-4">
+                <div class="card h-100 border-0 shadow hover-float">
+                    <div class="card-body text-center p-4">
+                        <div class="icon-circle bg-primary-subtle text-primary rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 64px; height: 64px;">
+                            <i class="fas fa-brain fa-lg"></i>
+                        </div>
+                        <h3 class="h5 fw-bold">Smart Repetition</h3>
+                        <p class="text-muted">Our algorithm shows cards at the perfect moment to optimize your long-term memory.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card h-100 border-0 shadow hover-float">
+                    <div class="card-body text-center p-4">
+                        <div class="icon-circle bg-success-subtle text-success rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 64px; height: 64px;">
+                            <i class="fas fa-chart-line fa-lg"></i>
+                        </div>
+                        <h3 class="h5 fw-bold">Detailed Analytics</h3>
+                        <p class="text-muted">Track your progress with beautiful visualizations and performance metrics.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card h-100 border-0 shadow hover-float">
+                    <div class="card-body text-center p-4">
+                        <div class="icon-circle bg-warning-subtle text-warning rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 64px; height: 64px;">
+                            <i class="fas fa-medal fa-lg"></i>
+                        </div>
+                        <h3 class="h5 fw-bold">Achievements</h3>
+                        <p class="text-muted">Earn badges and rewards as you study to stay motivated and track milestones.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<style>
+/* Modern Flashcard Styling */
+.flashcard {
+    position: relative;
+    height: 360px;
+    width: 100%;
+    perspective: 1500px;
+    transition: all 0.3s ease;
+}
+
+.flashcard-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    text-align: center;
+    transition: transform 0.8s;
+    transform-style: preserve-3d;
+    border-radius: 16px;
+}
+
+.flashcard-front, .flashcard-back {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    backface-visibility: hidden;
+    border-radius: 16px;
+    overflow: hidden;
+}
+
+.flashcard-back {
+    transform: rotateY(180deg);
+}
+
+.flashcard.flipped .flashcard-inner {
+    transform: rotateY(180deg);
+}
+
+/* Category pill */
+.category-pill {
+    position: absolute;
+    bottom: 1rem;
+    font-size: 0.9rem;
+    padding: 0.35rem 1rem;
+    border-radius: 20px;
+    background-color: rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(5px);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* Hover effect for cards */
+.hover-float {
+    transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.hover-float:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1) !important;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Demo cards data
+    const cards = [
+        {
+            id: 1,
+            front: 'What is the capital of France?',
+            back: 'Paris',
+            category: 'Geography',
+            color: 'linear-gradient(135deg, #3f51b5 0%, #1a237e 100%)'
+        },
+        {
+            id: 2,
+            front: 'What is the chemical symbol for water?',
+            back: 'H₂O',
+            category: 'Chemistry',
+            color: 'linear-gradient(135deg, #00acc1 0%, #006064 100%)'
+        },
+        {
+            id: 3,
+            front: 'Who wrote "Romeo and Juliet"?',
+            back: 'William Shakespeare',
+            category: 'Literature',
+            color: 'linear-gradient(135deg, #9c27b0 0%, #4a148c 100%)'
+        },
+        {
+            id: 4,
+            front: 'What is the Pythagorean theorem?',
+            back: 'In a right triangle, the square of the hypotenuse equals the sum of the squares of the other two sides (a² + b² = c²)',
+            category: 'Mathematics',
+            color: 'linear-gradient(135deg, #f44336 0%, #b71c1c 100%)'
+        },
+        {
+            id: 5,
+            front: 'What is photosynthesis?',
+            back: 'The process by which green plants use sunlight to synthesize nutrients from carbon dioxide and water.',
+            category: 'Biology',
+            color: 'linear-gradient(135deg, #4caf50 0%, #1b5e20 100%)'
+        }
+    ];
+    
+    let currentCardIndex = 0;
+    let isCardFlipped = false;
+    let filteredCards = [...cards];
+    
+    const flashcardEl = document.getElementById('flashcard');
+    const cardCounterEl = document.getElementById('card-counter');
+    const progressBarEl = document.getElementById('progress-bar');
+    const prevBtn = document.getElementById('prev-btn');
+    const nextBtn = document.getElementById('next-btn');
+    const flipBtn = document.getElementById('flip-btn');
+    const categoryBtns = document.querySelectorAll('.category-btn');
+    const darkModeSwitch = document.getElementById('darkModeSwitch');
+    
+    // Initialize
+    renderCard();
+    updateNavigation();
+    
+    // Event listeners
+    prevBtn.addEventListener('click', showPreviousCard);
+    nextBtn.addEventListener('click', showNextCard);
+    flipBtn.addEventListener('click', flipCard);
+    
+    // Dark mode toggle
+    darkModeSwitch.addEventListener('change', function() {
+        document.body.classList.toggle('dark-mode', this.checked);
+    });
+    
+    // Category filter
+    categoryBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            // Update active state
+            categoryBtns.forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            
+            // Filter cards
+            const category = this.dataset.category;
+            if (category === 'all') {
+                filteredCards = [...cards];
+            } else {
+                filteredCards = cards.filter(card => card.category === category);
+            }
+            
+            // Reset to first card of filtered set
+            currentCardIndex = 0;
+            isCardFlipped = false;
+            renderCard();
+            updateNavigation();
+        });
+    });
+    
+    function renderCard() {
+        const card = filteredCards[currentCardIndex];
+        
+        // Create card structure with front and back
+        flashcardEl.innerHTML = `
+            <div class="flashcard-inner">
+                <div class="flashcard-front rounded-4" style="background: ${card.color}; color: white;">
+                    <h2 class="mb-4">${card.front}</h2>
+                    <div class="category-pill">${card.category}</div>
+                    <div class="position-absolute top-0 start-0 m-3">
+                        <span class="badge bg-light text-dark">Question</span>
+                    </div>
+                </div>
+                <div class="flashcard-back rounded-4" style="background: ${card.color}; color: white;">
+                    <h2 class="mb-4">${card.back}</h2>
+                    <div class="category-pill">${card.category}</div>
+                    <div class="position-absolute top-0 start-0 m-3">
+                        <span class="badge bg-light text-dark">Answer</span>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Update card counter and progress bar
+        cardCounterEl.textContent = `${currentCardIndex + 1}/${filteredCards.length}`;
+        const progress = ((currentCardIndex + 1) / filteredCards.length) * 100;
+        progressBarEl.style.width = `${progress}%`;
+        progressBarEl.setAttribute('aria-valuenow', progress);
+        
+        // Apply flipped state if needed
+        if (isCardFlipped) {
+            flashcardEl.classList.add('flipped');
+        } else {
+            flashcardEl.classList.remove('flipped');
+        }
+    }
+    
+    function updateNavigation() {
+        prevBtn.disabled = currentCardIndex === 0;
+        nextBtn.disabled = currentCardIndex === filteredCards.length - 1;
+    }
+    
+    function showNextCard() {
+        if (currentCardIndex < filteredCards.length - 1) {
+            currentCardIndex++;
+            isCardFlipped = false;
+            renderCard();
+            updateNavigation();
+        }
+    }
+    
+    function showPreviousCard() {
+        if (currentCardIndex > 0) {
+            currentCardIndex--;
+            isCardFlipped = false;
+            renderCard();
+            updateNavigation();
+        }
+    }
+    
+    function flipCard() {
+        isCardFlipped = !isCardFlipped;
+        flashcardEl.classList.toggle('flipped', isCardFlipped);
+    }
+    
+    // Keyboard navigation
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowLeft') {
+            showPreviousCard();
+        } else if (e.key === 'ArrowRight') {
+            showNextCard();
+        } else if (e.key === ' ' || e.key === 'Spacebar') {
+            flipCard();
+            e.preventDefault(); // Prevent scrolling when pressing space
+        }
+    });
+});
+</script>
+{% endblock %}

@@ -9,6 +9,7 @@ from config import Config
 from models import db, User, UserRole, Card, Tag, CardReview, Achievement, UserAchievement, ActivityLog
 from forms import (RegistrationForm, LoginForm, UpdateProfileForm, CreateCardForm, 
                   SearchCardForm, ChangePasswordForm)
+from sqlalchemy import func
 
 # Initialize the app
 app = Flask(__name__)
@@ -399,9 +400,9 @@ def update_review(review_id):
         review.interval = max(1, int(review.interval * review.ease_factor * 1.3))
         review.ease_factor = min(2.5, review.ease_factor + 0.15)
     
-    # Update next review date
-    review.next_review = datetime.utcnow() + timedelta(days=review.interval)
+    # IMPORTANT: Update last_reviewed timestamp to track study activity
     review.last_reviewed = datetime.utcnow()
+    review.next_review = datetime.utcnow() + timedelta(days=review.interval)
     
     db.session.commit()
     log_activity(current_user.id, "Reviewed flashcard", 
@@ -519,9 +520,84 @@ def create_tables():
         db.session.add(admin)
         db.session.commit()
 
-if __name__ == '__main__':
-    app.run(debug=True)
+@app.route('/api/study_progress/data')
+@login_required
+def get_study_progress_data():
+    try:
+        # Get reviews for the past 7 days
+        end_date = datetime.now().replace(hour=23, minute=59, second=59)
+        start_date = (end_date - timedelta(days=6)).replace(hour=0, minute=0, second=0)
+        
+        # Query reviews within date range
+        reviews = db.session.query(
+            func.date(CardReview.last_reviewed).label('review_date'),
+            func.count().label('count')
+        ).filter(
+            CardReview.user_id == current_user.id,
+            CardReview.last_reviewed >= start_date,
+            CardReview.last_reviewed <= end_date,
+            CardReview.last_reviewed != None  # Make sure we only count reviews that happened
+        ).group_by(func.date(CardReview.last_reviewed)).all()
+        
+        # Convert to dictionary for easy lookup
+        review_counts = {r.review_date.strftime('%Y-%m-%d'): r.count for r in reviews}
+        
+        # Prepare data for the past 7 days
+        labels = []
+        data = []
+        
+        for i in range(6, -1, -1):
+            day = (end_date - timedelta(days=i)).date()
+            day_formatted = day.strftime('%Y-%m-%d')
+            labels.append(day.strftime('%a'))  # Abbreviated day name
+            data.append(review_counts.get(day_formatted, 0))
+        
+        return jsonify({
+            'labels': labels,
+            'data': data
+        })
+    except Exception as e:
+        app.logger.error(f"Error in study progress data: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
-# Add this at the bottom of app.py
+@app.route('/demo-flashcards')
+def demo_flashcards():
+    # Sample flashcards for demo - no database required
+    demo_cards = [
+        {
+            'id': 1,
+            'front': 'What is the capital of France?',
+            'back': 'Paris',
+            'category': 'Geography'
+        },
+        {
+            'id': 2,
+            'front': 'What is the chemical symbol for water?',
+            'back': 'H₂O',
+            'category': 'Chemistry'
+        },
+        {
+            'id': 3,
+            'front': 'Who wrote "Romeo and Juliet"?',
+            'back': 'William Shakespeare',
+            'category': 'Literature'
+        },
+        {
+            'id': 4,
+            'front': 'What is the Pythagorean theorem?',
+            'back': 'In a right triangle, the square of the hypotenuse equals the sum of the squares of the other two sides (a² + b² = c²)',
+            'category': 'Mathematics'
+        },
+        {
+            'id': 5,
+            'front': 'What is photosynthesis?',
+            'back': 'The process by which green plants use sunlight to synthesize nutrients from carbon dioxide and water.',
+            'category': 'Biology'
+        }
+    ]
+    
+    return render_template('demo_flashcards.html', demo_cards=demo_cards)
+
+# Application entry point - using port 8000 to avoid AirPlay conflict
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+    app.run(host='0.0.0.0', port=8000, debug=True)
