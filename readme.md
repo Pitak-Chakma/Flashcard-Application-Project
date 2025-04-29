@@ -31,9 +31,12 @@ The Flashcard Website is an interactive and user-friendly platform designed to e
         Number of remaining flashcards to study.
     Motivational Feedback: Progress tracking helps users stay motivated and identify areas for improvement.
 
-### [5] 🔁 Spaced Repetition
+### [5] 🔁 Advanced Spaced Repetition
 
     Enhanced Retention: This feature schedules flashcard reviews at increasing intervals, optimizing long-term memory retention through scientifically proven spaced repetition techniques.
+    SuperMemo SM-2 Algorithm: Uses an enhanced implementation of the SM-2 algorithm with adaptive difficulty adjustments.
+    Learning Efficiency Metrics: Tracks retention rate, review streak, and average ease factor to provide insights into learning progress.
+    Randomized Intervals: Adds small randomization to intervals to prevent cards from clustering on the same day.
 
 ### [6] 🎲 Gamification Elements
 
@@ -54,5 +57,27 @@ For questions, suggestions, or feedback, feel free to reach out:
     Implement collaborative study groups for public flashcards.
     Introduce AI-powered suggestions for flashcard content and study schedules.
     Enhance mobile responsiveness with a dedicated mobile app.
+    Integrate with external learning APIs for expanded content.
+
+# 🔧 Setup and Configuration
+
+## Environment Variables
+
+The application uses environment variables to securely store sensitive information. To set up:
+
+1. Copy the `.env.example` file to a new file named `.env`
+2. Fill in your values for the environment variables
+
+```
+# Example .env file
+SECRET_KEY=your-secure-random-key-here
+DATABASE_URL=sqlite:///flashcards.db
+SPACED_REPETITION_API_KEY=your-api-key-here
+MAX_CARDS_PER_SESSION=20
+```
+
+## Security
+
+All sensitive information including API keys are stored using environment variables to ensure they are not exposed in the codebase or public repositories. This follows security best practices for protecting credentials and sensitive configuration.
 
 ### 🙏 Thank you for exploring the Flashcard Website project! We hope it helps you achieve your learning goals efficiently and enjoyably. 🎓

@@ -10,6 +10,8 @@ from models import db, User, UserRole, Card, Tag, CardReview, Achievement, UserA
 from forms import (RegistrationForm, LoginForm, UpdateProfileForm, CreateCardForm, 
                   SearchCardForm, ChangePasswordForm)
 from sqlalchemy import func
+from services.spaced_repetition import SpacedRepetition
+from services.db_adapter import DatabaseAdapter
 
 # Initialize the app
 app = Flask(__name__)
@@ -17,6 +19,9 @@ app.config.from_object(Config)
 
 # Set up the database
 db.init_app(app)
+
+# Initialize database adapter
+db_adapter = DatabaseAdapter(app)
 
 # Set up login manager
 login_manager = LoginManager()
@@ -32,9 +37,8 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 # Helper function to log activity
 def log_activity(user_id, action, details=None):
-    log = ActivityLog(user_id=user_id, action=action, details=details)
-    db.session.add(log)
-    db.session.commit()
+    with app.app_context():
+        db_adapter.log_activity(user_id, action, details)
 
 # Home page route
 @app.route('/')
@@ -336,32 +340,128 @@ def delete_card(card_id):
 @app.route('/study')
 @login_required
 def study():
-    # Get cards due for review
-    reviews = CardReview.query.filter(
+    # Count cards due for review
+    due_count = CardReview.query.filter(
         CardReview.user_id == current_user.id,
         CardReview.next_review <= datetime.utcnow()
-    ).all()
+    ).count()
     
-    # Count how many cards are due
-    cards_due = len(reviews)
+    # Count cards without reviews (new cards)
+    new_count = Card.query.filter(
+        Card.user_id == current_user.id,
+        ~Card.id.in_(db.session.query(CardReview.card_id).filter_by(user_id=current_user.id))
+    ).count()
     
-    return render_template('study.html', cards_due=cards_due)
+    # Get all tags for filtering
+    tags = Tag.query.all()
+    
+    # Get learning efficiency metrics
+    efficiency = SpacedRepetition.get_learning_efficiency(
+        user_id=current_user.id,
+        review_model=CardReview,
+        session=db.session
+    )
+    
+    return render_template('study.html', 
+                          due_count=due_count, 
+                          new_count=new_count,
+                          tags=tags,
+                          efficiency=efficiency)
 
 # API to get next card for study
 @app.route('/api/get_next_card')
 @login_required
 def get_next_card():
-    # Find cards due for review
-    review = CardReview.query.filter(
-        CardReview.user_id == current_user.id,
-        CardReview.next_review <= datetime.utcnow()
-    ).first()
+    # Get tag filter if provided
+    tag_ids = request.args.getlist('tags', type=int)
     
-    if not review:
-        return jsonify({'status': 'complete'})
+    # Use the database adapter to get due reviews
+    reviews = db_adapter.get_due_reviews(
+        user_id=current_user.id,
+        limit=1,
+        tags=tag_ids if tag_ids else None
+    )
     
-    card = Card.query.get(review.card_id)
-    tags = [tag.name for tag in card.tags]
+    if not reviews:
+        # Check if there are any cards without reviews yet
+        # For SQLite, we'll use the existing query
+        # For Supabase, we'll use a custom query through the adapter
+        if app.config['STORAGE_BACKEND'] == 'sqlite':
+            cards_without_reviews = Card.query.filter(
+                Card.user_id == current_user.id,
+                ~Card.id.in_(db.session.query(CardReview.card_id).filter_by(user_id=current_user.id))
+            )
+            
+            # Apply tag filter if provided
+            if tag_ids:
+                cards_without_reviews = cards_without_reviews.filter(
+                    Card.tags.any(Tag.id.in_(tag_ids))
+                )
+                
+            card = cards_without_reviews.first()
+        else:
+            # For Supabase, we'll use a custom query through the adapter
+            # This would need to be implemented in the adapter
+            # For now, we'll just get all user cards and filter in Python
+            all_user_cards = db_adapter.get_user_cards(current_user.id, tag_id=tag_ids[0] if tag_ids else None)
+            all_reviews = db_adapter.supabase.client.table('card_reviews').select('card_id').eq('user_id', current_user.id).execute()
+            reviewed_card_ids = [r['card_id'] for r in all_reviews.data] if all_reviews.data else []
+            
+            # Filter cards that don't have reviews
+            cards_without_reviews = [c for c in all_user_cards if c.id not in reviewed_card_ids]
+            card = cards_without_reviews[0] if cards_without_reviews else None
+        
+        if card:
+            # Create a new review for this card
+            review_data = {
+                'card_id': card.id,
+                'user_id': current_user.id,
+                'ease_factor': SpacedRepetition.DEFAULT_EASE_FACTOR,
+                'interval': 1,
+                'next_review': datetime.utcnow()
+            }
+            
+            review = db_adapter.create_review(review_data)
+            
+            # Get tags for the card
+            if app.config['STORAGE_BACKEND'] == 'sqlite':
+                tags = [tag.name for tag in card.tags]
+            else:
+                # For Supabase, we need to get tags separately
+                tag_response = db_adapter.supabase.client.table('card_tags')\
+                    .select('tags(name)')\
+                    .eq('card_id', card.id)\
+                    .execute()
+                
+                tags = [item['tags']['name'] for item in tag_response.data] if tag_response.data else []
+            
+            return jsonify({
+                'status': 'success',
+                'card_id': card.id,
+                'question': card.question,
+                'answer': card.answer,
+                'tags': tags,
+                'review_id': review.id,
+                'new_card': True
+            })
+        else:
+            return jsonify({'status': 'complete'})
+    
+    # Get the first review (most urgent)
+    review = reviews[0]
+    card = db_adapter.get_card(review.card_id)
+    
+    # Get tags for the card
+    if app.config['STORAGE_BACKEND'] == 'sqlite':
+        tags = [tag.name for tag in card.tags]
+    else:
+        # For Supabase, we need to get tags separately
+        tag_response = db_adapter.supabase.client.table('card_tags')\
+            .select('tags(name)')\
+            .eq('card_id', card.id)\
+            .execute()
+        
+        tags = [item['tags']['name'] for item in tag_response.data] if tag_response.data else []
     
     return jsonify({
         'status': 'success',
@@ -369,14 +469,20 @@ def get_next_card():
         'question': card.question,
         'answer': card.answer,
         'tags': tags,
-        'review_id': review.id
+        'review_id': review.id,
+        'new_card': False,
+        'current_interval': review.interval,
+        'ease_factor': round(review.ease_factor, 2)
     })
 
 # API to update card review based on difficulty
 @app.route('/api/update_review/<int:review_id>', methods=['POST'])
 @login_required
 def update_review(review_id):
-    review = CardReview.query.get_or_404(review_id)
+    # Get the review using the database adapter
+    review = db_adapter.get_review(review_id)
+    if not review:
+        abort(404)
     
     # Check if user owns the review
     if review.user_id != current_user.id:
@@ -386,32 +492,91 @@ def update_review(review_id):
     data = request.get_json()
     difficulty = int(data.get('difficulty', 3))
     
-    # Update using SM-2 algorithm (Simplified)
-    if difficulty == 1:  # Again
-        review.interval = 1
-        review.ease_factor = max(1.3, review.ease_factor - 0.2)
-    elif difficulty == 2:  # Hard
-        review.interval = max(1, int(review.interval * 1.2))
-        review.ease_factor = max(1.3, review.ease_factor - 0.15)
-    elif difficulty == 3:  # Good
-        review.interval = max(1, int(review.interval * review.ease_factor))
-        # Ease factor stays the same
-    elif difficulty == 4:  # Easy
-        review.interval = max(1, int(review.interval * review.ease_factor * 1.3))
-        review.ease_factor = min(2.5, review.ease_factor + 0.15)
+    # Use the spaced repetition service to calculate the next interval and ease factor
+    new_interval, new_ease_factor = SpacedRepetition.calculate_next_interval(
+        current_interval=review.interval,
+        ease_factor=review.ease_factor,
+        difficulty=difficulty
+    )
     
-    # IMPORTANT: Update last_reviewed timestamp to track study activity
-    review.last_reviewed = datetime.utcnow()
-    review.next_review = datetime.utcnow() + timedelta(days=review.interval)
+    # Prepare the updated review data
+    next_review_date = SpacedRepetition.calculate_next_review_date(new_interval)
+    review_data = {
+        'interval': new_interval,
+        'ease_factor': new_ease_factor,
+        'last_reviewed': datetime.utcnow(),
+        'next_review': next_review_date
+    }
     
-    db.session.commit()
+    # Update the review using the database adapter
+    updated_review = db_adapter.update_review(review_id, review_data)
+    
     log_activity(current_user.id, "Reviewed flashcard", 
-                f"Card ID: {review.card_id}, Difficulty: {difficulty}, Next review in {review.interval} days")
+                f"Card ID: {review.card_id}, Difficulty: {difficulty}, Next review in {new_interval} days")
     
     # Check for achievements
     check_review_achievements(current_user.id)
     
-    return jsonify({'status': 'success'})
+    # Get learning efficiency metrics
+    if app.config['STORAGE_BACKEND'] == 'sqlite':
+        efficiency = SpacedRepetition.get_learning_efficiency(
+            user_id=current_user.id,
+            review_model=CardReview,
+            session=db.session
+        )
+    else:
+        # For Supabase, we need to calculate efficiency differently
+        # This is a simplified version for now
+        reviews_response = db_adapter.supabase.client.table('card_reviews')\
+            .select('*')\
+            .eq('user_id', current_user.id)\
+            .gte('last_reviewed', (datetime.utcnow() - timedelta(days=30)).isoformat())\
+            .execute()
+        
+        reviews = reviews_response.data if reviews_response.data else []
+        
+        if not reviews:
+            efficiency = {
+                "total_reviews": 0,
+                "average_ease": 0,
+                "retention_rate": 0,
+                "review_streak": 0
+            }
+        else:
+            total_reviews = len(reviews)
+            average_ease = sum(r['ease_factor'] for r in reviews) / total_reviews
+            successful_reviews = sum(1 for r in reviews if r['interval'] > 1)
+            retention_rate = (successful_reviews / total_reviews) * 100 if total_reviews > 0 else 0
+            
+            # Calculate streak (simplified)
+            review_days = set()
+            for review in reviews:
+                review_date = datetime.fromisoformat(review['last_reviewed'].replace('Z', '+00:00')).date()
+                review_days.add(review_date)
+            
+            streak = 0
+            today = datetime.utcnow().date()
+            for i in range(30):  # Check last 30 days
+                check_date = today - timedelta(days=i)
+                if check_date in review_days:
+                    streak += 1
+                else:
+                    break
+            
+            efficiency = {
+                "total_reviews": total_reviews,
+                "average_ease": round(average_ease, 2),
+                "retention_rate": round(retention_rate, 2),
+                "review_streak": streak
+            }
+    
+    return jsonify({
+        'status': 'success',
+        'new_interval': new_interval,
+        'new_ease_factor': round(new_ease_factor, 2),
+        'next_review': next_review_date.strftime('%Y-%m-%d'),
+        'efficiency': efficiency
+    })
 
 # Helper function to check and award review-based achievements
 def check_review_achievements(user_id):
