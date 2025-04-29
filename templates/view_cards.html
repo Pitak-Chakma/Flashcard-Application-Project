@@ -401,7 +401,17 @@
                         </div>
                     </div>
                     <div class="card-footer text-muted d-flex justify-content-between align-items-center">
-                        <span><i class="far fa-calendar-alt me-1"></i> {{ card.date_created.strftime('%b %d, %Y') }}</span>
+                        <span><i class="far fa-calendar-alt me-1"></i> 
+                        {% if card.date_created is string %}
+                            {% if 'T' in card.date_created %}
+                                {{ card.date_created.split('T')[0] }}
+                            {% else %}
+                                {{ card.date_created }}
+                            {% endif %}
+                        {% else %}
+                            {{ card.date_created.strftime('%b %d, %Y') if card.date_created else 'Unknown date' }}
+                        {% endif %}
+                        </span>
                         <span class="badge bg-light text-secondary">#{{ card.id }}</span>
                     </div>
                 </div>

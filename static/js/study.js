@@ -10,6 +10,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // State
     let currentCard = null;
+    let cardsRemaining = parseInt(currentCardCounter.textContent.match(/\d+/)[0]) || 0;
     
     // Initial load
     loadNextCard();
@@ -28,6 +29,12 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
     
+    // Add event listener for the "Return to Dashboard" button in the no cards message
+    document.querySelector('#noCardsMessage a.btn-outline-secondary').addEventListener('click', function(e) {
+        e.preventDefault();
+        window.location.href = this.getAttribute('href');
+    });
+    
     // Load the next card
     function loadNextCard() {
         fetch('/api/get_next_card')
@@ -37,6 +44,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     // No more cards to study
                     studyContainer.classList.add('d-none');
                     noCardsMessage.classList.remove('d-none');
+                    
+                    // Set a timeout to redirect to dashboard after showing the completion message
+                    setTimeout(() => {
+                        window.location.href = '/dashboard';
+                    }, 3000); // Redirect after 3 seconds
+                    
                     return;
                 }
                 
@@ -61,6 +74,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 questionContainer.classList.remove('d-none');
                 answerContainer.classList.add('d-none');
                 
+                // Re-enable all difficulty buttons
+                document.querySelectorAll('.difficulty-btn').forEach(btn => {
+                    btn.disabled = false;
+                    btn.classList.remove('opacity-50');
+                });
+                
                 // Make sure study container is visible
                 studyContainer.classList.remove('d-none');
                 noCardsMessage.classList.add('d-none');
@@ -73,25 +92,68 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Submit review and load next card
     function submitReview(reviewId, difficulty) {
+        // Show loading indicator or disable buttons
+        document.querySelectorAll('.difficulty-btn').forEach(btn => {
+            btn.disabled = true;
+            btn.classList.add('opacity-50');
+        });
+        
         fetch(`/api/update_review/${reviewId}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({ difficulty: difficulty }),
+            credentials: 'same-origin' // Ensure cookies are sent with the request
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(data => {
             if (data.status === 'success') {
-                // Load the next card
-                loadNextCard();
+                // Update cards remaining counter
+                cardsRemaining--;
+                if (cardsRemaining >= 0) {
+                    currentCardCounter.textContent = `${cardsRemaining} cards remaining`;
+                }
+                
+                // If no cards remaining, redirect to dashboard
+                if (cardsRemaining <= 0) {
+                    // Show a brief message before redirecting
+                    studyContainer.classList.add('d-none');
+                    noCardsMessage.classList.remove('d-none');
+                    
+                    // Redirect to dashboard after a short delay
+                    setTimeout(() => {
+                        window.location.href = '/dashboard';
+                    }, 1500);
+                } else {
+                    // Load the next card
+                    loadNextCard();
+                }
             } else {
-                alert('Failed to update review. Please try again.');
+                console.error('API returned error:', data);
+                alert(`Failed to update review: ${data.message || 'Unknown error'}`);
+                
+                // Re-enable buttons
+                document.querySelectorAll('.difficulty-btn').forEach(btn => {
+                    btn.disabled = false;
+                    btn.classList.remove('opacity-50');
+                });
             }
         })
         .catch(error => {
             console.error('Error updating review:', error);
-            alert('Failed to update review. Please try again later.');
+            alert('Failed to update review. Please try again later. If the problem persists, try refreshing the page.');
+            
+            // Re-enable buttons
+            document.querySelectorAll('.difficulty-btn').forEach(btn => {
+                btn.disabled = false;
+                btn.classList.remove('opacity-50');
+            });
         });
     }
 });

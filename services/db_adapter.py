@@ -218,17 +218,46 @@ class DatabaseAdapter:
     
     def update_review(self, review_id, review_data):
         """Update a review"""
-        if self.backend == 'supabase':
-            response = self.supabase.update_review(review_id, review_data)
-            if response.data and len(response.data) > 0:
-                return self._supabase_to_model(response.data[0], CardReview)
-        else:
-            review = CardReview.query.get(review_id)
-            if review:
+        try:
+            if self.backend == 'supabase':
+                # Format datetime objects for Supabase
+                formatted_data = {}
                 for key, value in review_data.items():
-                    setattr(review, key, value)
-                db.session.commit()
-                return review
+                    if isinstance(value, datetime):
+                        formatted_data[key] = value.isoformat()
+                    else:
+                        formatted_data[key] = value
+                
+                # Ensure review_id is an integer
+                try:
+                    review_id = int(review_id)
+                except (ValueError, TypeError):
+                    current_app.logger.error(f"Invalid review_id: {review_id}")
+                    return None
+                
+                # Make the update request to Supabase
+                response = self.supabase.update_review(review_id, formatted_data)
+                
+                # Check for successful response
+                if response and hasattr(response, 'data') and response.data and len(response.data) > 0:
+                    return self._supabase_to_model(response.data[0], CardReview)
+                else:
+                    current_app.logger.error(f"Supabase update_review failed: {response}")
+                    return None
+            else:
+                # SQLite update
+                review = CardReview.query.get(review_id)
+                if review:
+                    for key, value in review_data.items():
+                        setattr(review, key, value)
+                    db.session.commit()
+                    return review
+                else:
+                    current_app.logger.error(f"Review not found with ID: {review_id}")
+                    return None
+        except Exception as e:
+            current_app.logger.error(f"Error in update_review: {str(e)}")
+            return None
     
     # Tag operations
     
@@ -324,11 +353,14 @@ class DatabaseAdapter:
         for key, value in data.items():
             if hasattr(instance, key):
                 # Handle datetime fields
-                if isinstance(value, str) and key.endswith(('_at', '_date', 'date_', 'time', '_time', 'created', 'updated')):
+                if isinstance(value, str) and key.endswith(('_at', '_date', 'date_', 'time', '_time', 'created', 'updated', 'reviewed', 'review', 'next_review', 'last_reviewed')):
                     try:
-                        value = datetime.fromisoformat(value.replace('Z', '+00:00'))
-                    except (ValueError, TypeError):
+                        # Skip parsing entirely - just store the string value
+                        # This avoids the datetime parsing issue completely
                         pass
+                    except Exception as e:
+                        current_app.logger.error(f"Error handling datetime '{value}': {str(e)}")
+                        # Keep the original string value
                 
                 setattr(instance, key, value)
         

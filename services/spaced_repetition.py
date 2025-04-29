@@ -10,6 +10,8 @@ import math
 import random
 import os
 from dotenv import load_dotenv
+from flask import current_app
+from services.db_adapter import DatabaseAdapter
 
 # Load environment variables
 load_dotenv()
@@ -76,6 +78,54 @@ class SpacedRepetition:
         return new_interval, new_ease_factor
     
     @staticmethod
+    def safe_parse_datetime(datetime_str):
+        """
+        Safely parse a datetime string in various formats.
+        
+        Args:
+            datetime_str (str): Datetime string to parse
+            
+        Returns:
+            datetime: Parsed datetime object or None if parsing fails
+        """
+        if not isinstance(datetime_str, str):
+            return datetime_str  # Already a datetime object or None
+            
+        try:
+            # Try standard parsing first
+            return datetime.fromisoformat(datetime_str.replace('Z', '+00:00'))
+        except ValueError:
+            try:
+                # Try with regex to extract components
+                import re
+                
+                # Extract date and time parts
+                date_match = re.search(r'(\d{4}-\d{2}-\d{2})', datetime_str)
+                time_match = re.search(r'(\d{2}:\d{2}:\d{2})(\.\d+)?', datetime_str)
+                
+                if date_match and time_match:
+                    date_part = date_match.group(1)
+                    time_part = time_match.group(1)
+                    microseconds = time_match.group(2) if time_match.group(2) else ''
+                    
+                    # Format microseconds properly if present
+                    if microseconds:
+                        # Remove the dot and pad/truncate to 6 digits
+                        microseconds = microseconds[1:].ljust(6, '0')[:6]
+                        time_part = f"{time_part}.{microseconds}"
+                    
+                    # Create a properly formatted datetime string
+                    formatted_value = f"{date_part} {time_part}"
+                    return datetime.strptime(formatted_value, '%Y-%m-%d %H:%M:%S.%f' if microseconds else '%Y-%m-%d %H:%M:%S')
+                else:
+                    # If regex fails, try simple date format
+                    return datetime.strptime(datetime_str.split('T')[0], '%Y-%m-%d')
+            except Exception as e:
+                # If all parsing attempts fail, log and return current time
+                current_app.logger.error(f"Error parsing datetime '{datetime_str}': {str(e)}")
+                return datetime.utcnow()
+    
+    @staticmethod
     def calculate_next_review_date(interval):
         """
         Calculate the next review date based on the interval.
@@ -89,61 +139,52 @@ class SpacedRepetition:
         return datetime.utcnow() + timedelta(days=interval)
     
     @staticmethod
-    def get_due_cards(user_id, card_model, review_model, session, limit=None, tags=None):
+    def get_due_cards(user_id, limit=None, tags=None):
         """
         Get cards due for review, prioritized by urgency.
         
         Args:
             user_id (int): User ID
-            card_model: Card model class
-            review_model: CardReview model class
-            session: Database session
             limit (int, optional): Maximum number of cards to return
             tags (list, optional): List of tag IDs to filter by
             
         Returns:
             list: List of card reviews due for review
         """
-        query = session.query(review_model).filter(
-            review_model.user_id == user_id,
-            review_model.next_review <= datetime.utcnow()
-        )
+        # Get database adapter
+        db_adapter = DatabaseAdapter()
         
-        # If tags are specified, filter by tags
-        if tags and len(tags) > 0:
-            query = query.join(card_model).filter(
-                card_model.tags.any(id.in_(tags))
-            )
-        
-        # Order by urgency (overdue cards first)
-        query = query.order_by(review_model.next_review.asc())
-        
-        if limit:
-            query = query.limit(limit)
-            
-        return query.all()
+        # Use the adapter to get due reviews
+        return db_adapter.get_due_reviews(user_id, limit=limit, tags=tags)
     
     @staticmethod
-    def get_learning_efficiency(user_id, review_model, session, days=30):
+    def get_learning_efficiency(user_id, days=30):
         """
         Calculate learning efficiency based on review history.
         
         Args:
             user_id (int): User ID
-            review_model: CardReview model class
-            session: Database session
             days (int): Number of days to analyze
             
         Returns:
             dict: Learning efficiency metrics
         """
+        # Get database adapter
+        db_adapter = DatabaseAdapter()
         start_date = datetime.utcnow() - timedelta(days=days)
         
-        # Get all reviews in the time period
-        reviews = session.query(review_model).filter(
-            review_model.user_id == user_id,
-            review_model.last_reviewed >= start_date
-        ).all()
+        # Get all reviews in the time period using the adapter
+        if db_adapter.backend == 'supabase':
+            # For Supabase, use the client directly
+            response = db_adapter.supabase.client.table('card_reviews').select('*').eq('user_id', user_id).gte('last_reviewed', start_date.isoformat()).execute()
+            reviews = response.data if response.data else []
+        else:
+            # For SQLite, use the model
+            from models import CardReview
+            reviews = CardReview.query.filter(
+                CardReview.user_id == user_id,
+                CardReview.last_reviewed >= start_date
+            ).all()
         
         if not reviews:
             return {
@@ -155,17 +196,42 @@ class SpacedRepetition:
         
         # Calculate metrics
         total_reviews = len(reviews)
-        average_ease = sum(r.ease_factor for r in reviews) / total_reviews
+        
+        # Handle both SQLAlchemy model and dict from Supabase
+        def get_attr(review, attr):
+            return review[attr] if isinstance(review, dict) else getattr(review, attr)
+        
+        average_ease = sum(get_attr(r, 'ease_factor') for r in reviews) / total_reviews
         
         # Calculate retention rate (percentage of non-failed reviews)
-        successful_reviews = sum(1 for r in reviews if r.interval > 1)
+        successful_reviews = sum(1 for r in reviews if get_attr(r, 'interval') > 1)
         retention_rate = (successful_reviews / total_reviews) * 100 if total_reviews > 0 else 0
         
         # Calculate current streak
         # Group reviews by day
         review_days = set()
         for review in reviews:
-            review_days.add(review.last_reviewed.date())
+            try:
+                # Handle datetime format from both SQLAlchemy and Supabase
+                last_reviewed = get_attr(review, 'last_reviewed')
+                
+                # For SQLAlchemy objects (already datetime objects)
+                if hasattr(last_reviewed, 'date'):
+                    review_days.add(last_reviewed.date())
+                # For string dates from Supabase
+                elif isinstance(last_reviewed, str):
+                    # Just extract the date part (YYYY-MM-DD) without parsing the full datetime
+                    date_str = last_reviewed.split('T')[0] if 'T' in last_reviewed else last_reviewed.split(' ')[0]
+                    year, month, day = map(int, date_str.split('-'))
+                    review_days.add(datetime(year, month, day).date())
+                else:
+                    # Fallback to today's date
+                    current_app.logger.warning(f"Unknown date format: {last_reviewed}")
+                    review_days.add(datetime.utcnow().date())
+            except Exception as e:
+                current_app.logger.error(f"Error processing review date: {str(e)}")
+                # Fallback to today's date
+                review_days.add(datetime.utcnow().date())
         
         # Count consecutive days up to today
         streak = 0

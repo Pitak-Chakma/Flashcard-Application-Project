@@ -22,4 +22,4 @@ class Config:
     SUPABASE_KEY = os.getenv('SUPABASE_KEY')
     
     # Storage backend ('sqlite' or 'supabase')
-    STORAGE_BACKEND = os.getenv('STORAGE_BACKEND', 'sqlite')
+    STORAGE_BACKEND = os.getenv('STORAGE_BACKEND', 'supabase')

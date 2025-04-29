@@ -410,7 +410,10 @@
                         </div>
                     </div>
                     <div class="col-md-7">
-                        <canvas id="reviewStatusChart" height="200"></canvas>
+                        <canvas id="reviewStatusChart" 
+                               data-completed="{{ user_cards - reviews_today }}" 
+                               data-due="{{ reviews_today }}"
+                               height="200"></canvas>
                     </div>
                 </div>
             </div>
@@ -418,30 +421,7 @@
     </div>
 </div>
 
-<!-- Charts Card -->
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="card stat-chart-card">
-            <div class="card-header-modern">
-                <h5 class="card-header-title">Learning Progress</h5>
-            </div>
-            <div class="card-body-modern">
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="chart-container">
-                            <canvas id="progressChart"></canvas>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="chart-container">
-                            <canvas id="difficultyChart"></canvas>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+
 
 <!-- Achievements Modal -->
 <div class="modal fade" id="achievementsModal" tabindex="-1" aria-hidden="true">
@@ -466,7 +446,15 @@
                                 <p class="card-text text-muted">{{ user_achievement.achievement.description }}</p>
                                 <div class="achievement-date">
                                     <i class="far fa-calendar-alt me-2"></i>
-                                    {{ user_achievement.date_earned.strftime('%b %d, %Y') }}
+                                    {% if user_achievement.date_earned is string %}
+                                        {% if 'T' in user_achievement.date_earned %}
+                                            {{ user_achievement.date_earned.split('T')[0] }}
+                                        {% else %}
+                                            {{ user_achievement.date_earned }}
+                                        {% endif %}
+                                    {% else %}
+                                        {{ user_achievement.date_earned.strftime('%b %d, %Y') if user_achievement.date_earned else 'Unknown date' }}
+                                    {% endif %}
                                 </div>
                             </div>
                         </div>
@@ -494,25 +482,34 @@
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
+// No template variables in JavaScript
+
 document.addEventListener('DOMContentLoaded', function() {
-    // Set Chart.js defaults for all charts
-    Chart.defaults.font.family = "'Inter', sans-serif";
-    Chart.defaults.font.size = 12;
+    // Chart.js global settings
+    Chart.defaults.font.family = "'Poppins', sans-serif";
+    Chart.defaults.font.size = 13;
+    Chart.defaults.color = '#64748b';
     Chart.defaults.plugins.tooltip.backgroundColor = 'rgba(0, 0, 0, 0.8)';
     Chart.defaults.plugins.tooltip.padding = 12;
     Chart.defaults.plugins.tooltip.cornerRadius = 8;
     Chart.defaults.plugins.tooltip.titleFont = {size: 14, weight: 'bold'};
     Chart.defaults.plugins.tooltip.bodyFont = {size: 13};
     Chart.defaults.plugins.tooltip.displayColors = false;
-    
+
     // Review Status Chart - Shows current cards due vs completed
-    const reviewCtx = document.getElementById('reviewStatusChart').getContext('2d');
+    const reviewChart = document.getElementById('reviewStatusChart');
+    const reviewCtx = reviewChart.getContext('2d');
+    
+    // Get data from data attributes
+    const completedCards = parseInt(reviewChart.dataset.completed || 0);
+    const dueCards = parseInt(reviewChart.dataset.due || 0);
+    
     const reviewStatusChart = new Chart(reviewCtx, {
         type: 'doughnut',
         data: {
             labels: ['Completed', 'Due Today'],
             datasets: [{
-                data: [{{ user_cards - reviews_today }}, {{ reviews_today }}],
+                data: [completedCards, dueCards],
                 backgroundColor: [
                     'rgba(46, 204, 113, 0.9)',
                     'rgba(255, 159, 64, 0.9)'
@@ -537,141 +534,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         usePointStyle: true,
                         pointStyle: 'circle'
                     }
-                }
-            }
-        }
-    });
-
-    // Simulated learning progress over time (based on user's card count)
-    const progressCtx = document.getElementById('progressChart').getContext('2d');
-    
-    // Calculate simulated progress data based on user's actual card count
-    const cardCount = {{ user_cards }};
-    const daysBack = 7; // Show a week of history
-    const progressData = [];
-    const progressLabels = [];
-    
-    // Create simulated historical data that ends with current card count
-    let simulatedCount = Math.max(0, cardCount - Math.floor(cardCount * 0.3));
-    for (let i = daysBack; i >= 0; i--) {
-        // Calculate a date string for each point
-        const date = new Date();
-        date.setDate(date.getDate() - i);
-        progressLabels.push(date.toLocaleDateString('en-US', {month: 'short', day: 'numeric'}));
-        
-        // Add some random growth that ends at current card count
-        if (i > 0) {
-            progressData.push(simulatedCount);
-            simulatedCount += Math.floor(Math.random() * 5) + 1;
-        } else {
-            // Last point shows actual current count
-            progressData.push(cardCount);
-        }
-    }
-    
-    // Create gradient for chart
-    const progressGradient = progressCtx.createLinearGradient(0, 0, 0, 250);
-    progressGradient.addColorStop(0, 'rgba(58, 71, 213, 0.6)');
-    progressGradient.addColorStop(1, 'rgba(58, 71, 213, 0.0)');
-    
-    const progressChart = new Chart(progressCtx, {
-        type: 'line',
-        data: {
-            labels: progressLabels,
-            datasets: [{
-                label: 'Cards Created',
-                data: progressData,
-                backgroundColor: progressGradient,
-                borderColor: 'rgba(58, 71, 213, 1)',
-                borderWidth: 3,
-                pointBackgroundColor: '#fff',
-                pointBorderColor: 'rgba(58, 71, 213, 1)',
-                pointBorderWidth: 2,
-                pointRadius: 5,
-                pointHoverRadius: 7,
-                tension: 0.4,
-                fill: true
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                x: {
-                    grid: {
-                        display: false
-                    }
-                },
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        precision: 0
-                    },
-                    grid: {
-                        color: 'rgba(0, 0, 0, 0.05)'
-                    }
-                }
-            },
-            plugins: {
-                legend: {
-                    display: false
-                }
-            }
-        }
-    });
-    
-    // Difficulty Distribution Chart - simulated data based on user's card count
-    const diffCtx = document.getElementById('difficultyChart').getContext('2d');
-    
-    // Calculate simulated difficulty distribution
-    const easyCards = Math.floor(cardCount * 0.35);
-    const mediumCards = Math.floor(cardCount * 0.4);
-    const hardCards = cardCount - easyCards - mediumCards;
-    
-    const difficultyChart = new Chart(diffCtx, {
-        type: 'bar',
-        data: {
-            labels: ['Easy', 'Medium', 'Hard'],
-            datasets: [{
-                label: 'Cards by Difficulty',
-                data: [easyCards, mediumCards, hardCards],
-                backgroundColor: [
-                    'rgba(46, 204, 113, 0.8)',
-                    'rgba(249, 202, 36, 0.8)',
-                    'rgba(231, 76, 60, 0.8)'
-                ],
-                borderColor: [
-                    'rgba(46, 204, 113, 1)',
-                    'rgba(249, 202, 36, 1)',
-                    'rgba(231, 76, 60, 1)'
-                ],
-                borderWidth: 2,
-                borderRadius: 8,
-                maxBarThickness: 50
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                x: {
-                    grid: {
-                        display: false
-                    }
-                },
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        precision: 0
-                    },
-                    grid: {
-                        color: 'rgba(0, 0, 0, 0.05)'
-                    }
-                }
-            },
-            plugins: {
-                legend: {
-                    display: false
                 }
             }
         }
