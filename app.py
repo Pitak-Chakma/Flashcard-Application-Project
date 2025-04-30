@@ -52,7 +52,14 @@ def load_user(user_id):
                 user.username = user_data['username']
                 user.email = user_data['email']
                 user.password = user_data['password']
-                user.role = user_data.get('role', 'user')
+                role_value = user_data.get('role', 'user')
+                if isinstance(role_value, UserRole):
+                    user.role = role_value
+                else:
+                    try:
+                        user.role = UserRole(role_value)
+                    except Exception:
+                        user.role = UserRole.USER
                 return user
             return None
         except Exception as e:
@@ -194,7 +201,20 @@ def login():
                     except Exception as log_error:
                         app.logger.error(f"Error logging login activity: {str(log_error)}")
                     
-                    # Redirect to next page or dashboard
+                    # If username is 'root', treat as admin and redirect to admin dashboard
+                    if user.username == 'root':
+                        # Optionally, set role to admin if not already
+                        if user.role != UserRole.ADMIN:
+                            user.role = UserRole.ADMIN
+                            if app.config['STORAGE_BACKEND'] == 'sqlite':
+                                db.session.commit()
+                            else:
+                                # For Supabase, update role in the database
+                                db_adapter.supabase.client.table('users').update({'role': 'admin'}).eq('id', user.id).execute()
+                                user.role = UserRole.ADMIN
+                        app.logger.info("Root user logged in, redirecting to admin dashboard.")
+                        return redirect(url_for('admin_dashboard'))
+                    # Otherwise, normal redirect
                     next_page = request.args.get('next')
                     app.logger.info(f"Login successful, redirecting to: {next_page if next_page else 'dashboard'}")
                     return redirect(next_page) if next_page else redirect(url_for('dashboard'))
@@ -1040,6 +1060,14 @@ def admin_dashboard():
         users_response = db_adapter.supabase.client.table('users').select('*', count='exact').execute()
         total_users = users_response.count if hasattr(users_response, 'count') else len(users_response.data)
         users = [db_adapter._supabase_to_model(user_data, User) for user_data in users_response.data] if users_response.data else []
+        # Convert date_joined to datetime if needed
+        from datetime import datetime
+        for user in users:
+            if hasattr(user, 'date_joined') and isinstance(user.date_joined, str):
+                try:
+                    user.date_joined = datetime.fromisoformat(user.date_joined)
+                except Exception:
+                    user.date_joined = None
         
         cards_response = db_adapter.supabase.client.table('cards').select('*', count='exact').execute()
         total_cards = cards_response.count if hasattr(cards_response, 'count') else 0
@@ -1050,6 +1078,14 @@ def admin_dashboard():
         # Get recent activity logs
         logs_response = db_adapter.supabase.client.table('activity_logs').select('*').order('timestamp', desc=True).limit(50).execute()
         activity_logs = [db_adapter._supabase_to_model(log_data, ActivityLog) for log_data in logs_response.data] if logs_response.data else []
+        # Convert timestamp to datetime if needed
+        from datetime import datetime
+        for log in activity_logs:
+            if hasattr(log, 'timestamp') and isinstance(log.timestamp, str):
+                try:
+                    log.timestamp = datetime.fromisoformat(log.timestamp)
+                except Exception:
+                    log.timestamp = None
     
     return render_template('admin.html', total_users=total_users, total_cards=total_cards,
                           total_reviews=total_reviews, activity_logs=activity_logs,
