@@ -1283,6 +1283,105 @@ def demo_flashcards():
     
     return render_template('demo_flashcards.html', demo_cards=demo_cards)
 
+# Admin analytics API endpoints
+from collections import OrderedDict
+
+@app.route('/api/admin/user_growth')
+@login_required
+def api_user_growth():
+    if current_user.role != UserRole.ADMIN:
+        abort(403)
+    db_adapter = DatabaseAdapter()
+    now = datetime.utcnow()
+    days = [(now - timedelta(days=i)).strftime('%b %d') for i in reversed(range(10))]
+    day_counts = OrderedDict((d, 0) for d in days)
+    if app.config['STORAGE_BACKEND'] == 'sqlite':
+        users = User.query.all()
+        for user in users:
+            if user.date_joined:
+                label = user.date_joined.strftime('%b %d')
+                if label in day_counts:
+                    day_counts[label] += 1
+    else:
+        users_response = db_adapter.supabase.client.table('users').select('*').execute()
+        if users_response.data:
+            for user_data in users_response.data:
+                date_str = user_data.get('date_joined')
+                if date_str:
+                    try:
+                        dt = datetime.fromisoformat(date_str)
+                        label = dt.strftime('%b %d')
+                        if label in day_counts:
+                            day_counts[label] += 1
+                    except Exception:
+                        pass
+    return jsonify({'labels': list(day_counts.keys()), 'data': list(day_counts.values())})
+
+
+@app.route('/api/admin/card_creation')
+@login_required
+def api_card_creation():
+    if current_user.role != UserRole.ADMIN:
+        abort(403)
+    db_adapter = DatabaseAdapter()
+    now = datetime.utcnow()
+    days = [(now - timedelta(days=i)).strftime('%b %d') for i in reversed(range(10))]
+    day_counts = OrderedDict((d, 0) for d in days)
+    if app.config['STORAGE_BACKEND'] == 'sqlite':
+        cards = Card.query.all()
+        for card in cards:
+            if card.date_created:
+                label = card.date_created.strftime('%b %d')
+                if label in day_counts:
+                    day_counts[label] += 1
+    else:
+        cards_response = db_adapter.supabase.client.table('cards').select('*').execute()
+        if cards_response.data:
+            for card_data in cards_response.data:
+                date_str = card_data.get('date_created')
+                if date_str:
+                    try:
+                        dt = datetime.fromisoformat(date_str)
+                        label = dt.strftime('%b %d')
+                        if label in day_counts:
+                            day_counts[label] += 1
+                    except Exception:
+                        pass
+    return jsonify({'labels': list(day_counts.keys()), 'data': list(day_counts.values())})
+
+
+@app.route('/api/admin/review_activity')
+@login_required
+def api_review_activity():
+    if current_user.role != UserRole.ADMIN:
+        abort(403)
+    db_adapter = DatabaseAdapter()
+    now = datetime.utcnow()
+    days = [(now - timedelta(days=i)).strftime('%b %d') for i in reversed(range(10))]
+    day_counts = OrderedDict((d, 0) for d in days)
+    if app.config['STORAGE_BACKEND'] == 'sqlite':
+        reviews = CardReview.query.all()
+        for review in reviews:
+            if review.last_reviewed:
+                label = review.last_reviewed.strftime('%b %d')
+                if label in day_counts:
+                    day_counts[label] += 1
+    else:
+        reviews_response = db_adapter.supabase.client.table('card_reviews').select('*').execute()
+        if reviews_response.data:
+            for review_data in reviews_response.data:
+                date_str = review_data.get('last_reviewed')
+                if date_str:
+                    try:
+                        dt = datetime.fromisoformat(date_str)
+                        label = dt.strftime('%b %d')
+                        if label in day_counts:
+                            day_counts[label] += 1
+                    except Exception:
+                        pass
+    return jsonify({'labels': list(day_counts.keys()), 'data': list(day_counts.values())})
+
+
 # Application entry point - using port 8001 to avoid conflicts
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8001, debug=True)

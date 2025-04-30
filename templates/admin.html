@@ -84,38 +84,25 @@
     </div>
     
     <div class="row g-4 mb-4">
-        <!-- System Statistics -->
-            </div>
-        </div>
-        
-        <!-- System Statistics -->
-        <div class="col-lg-4">
-            <div class="card border-0 rounded-4 shadow-sm h-100">
+        <!-- Admin Analytics Charts -->
+        <div class="col-lg-12">
+            <div class="card border-0 rounded-4 shadow-sm mb-4">
                 <div class="card-header bg-white border-0 p-4">
-                    <h5 class="mb-0">System Statistics</h5>
+                    <h5 class="mb-0">Admin Analytics</h5>
                 </div>
                 <div class="card-body p-4">
-                    <div class="chart-container" style="position: relative; height: 250px;">
-                        <canvas id="statisticsChart"></canvas>
-                    </div>
-                    <div class="row g-2 mt-4">
-                        <div class="col-4 text-center">
-                            <div class="p-3 rounded-4 bg-light">
-                                <h6 class="small text-muted mb-1">Cards</h6>
-                                <p class="h5 mb-0 fw-bold">{{ total_cards }}</p>
-                            </div>
+                    <div class="row">
+                        <div class="col-md-4 mb-4">
+                            <h6 class="mb-2">User Growth (Last 10 Days)</h6>
+                            <canvas id="userGrowthChart" height="200"></canvas>
                         </div>
-                        <div class="col-4 text-center">
-                            <div class="p-3 rounded-4 bg-light">
-                                <h6 class="small text-muted mb-1">Users</h6>
-                                <p class="h5 mb-0 fw-bold">{{ total_users }}</p>
-                            </div>
+                        <div class="col-md-4 mb-4">
+                            <h6 class="mb-2">Cards Created (Last 10 Days)</h6>
+                            <canvas id="cardCreationChart" height="200"></canvas>
                         </div>
-                        <div class="col-4 text-center">
-                            <div class="p-3 rounded-4 bg-light">
-                                <h6 class="small text-muted mb-1">Reviews</h6>
-                                <p class="h5 mb-0 fw-bold">{{ total_reviews }}</p>
-                            </div>
+                        <div class="col-md-4 mb-4">
+                            <h6 class="mb-2">Reviews Activity (Last 10 Days)</h6>
+                            <canvas id="reviewActivityChart" height="200"></canvas>
                         </div>
                     </div>
                 </div>
@@ -249,6 +236,53 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // --- Admin Analytics Charts ---
+        function renderLineChart(ctx, labels, data, label, color) {
+            return new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: label,
+                        data: data,
+                        fill: true,
+                        borderColor: color,
+                        backgroundColor: color + '33',
+                        tension: 0.3,
+                        pointRadius: 4,
+                        pointHoverRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { mode: 'index', intersect: false }
+                    },
+                    scales: {
+                        x: { grid: { display: false } },
+                        y: { beginAtZero: true, grid: { color: '#eee' } }
+                    }
+                }
+            });
+        }
+
+        // Fetch and render User Growth
+        fetch('/api/admin/user_growth').then(r => r.json()).then(data => {
+            const ctx = document.getElementById('userGrowthChart').getContext('2d');
+            renderLineChart(ctx, data.labels, data.data, 'Users', '#6366f1');
+        });
+        // Fetch and render Card Creation
+        fetch('/api/admin/card_creation').then(r => r.json()).then(data => {
+            const ctx = document.getElementById('cardCreationChart').getContext('2d');
+            renderLineChart(ctx, data.labels, data.data, 'Cards', '#10b981');
+        });
+        // Fetch and render Review Activity
+        fetch('/api/admin/review_activity').then(r => r.json()).then(data => {
+            const ctx = document.getElementById('reviewActivityChart').getContext('2d');
+            renderLineChart(ctx, data.labels, data.data, 'Reviews', '#0ea5e9');
+        });
+
         // Dark mode toggle
         const darkModeSwitch = document.getElementById('darkModeSwitch');
         darkModeSwitch.addEventListener('change', function() {
