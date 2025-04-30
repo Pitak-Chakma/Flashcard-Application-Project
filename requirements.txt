@@ -7,3 +7,5 @@ SQLAlchemy==1.4.23
 email-validator==1.1.3
 Flask-Migrate==4.0.4
 python-dotenv==1.0.0
+supabase
+requests
