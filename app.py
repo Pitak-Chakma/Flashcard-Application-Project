@@ -1088,8 +1088,29 @@ def admin_dashboard():
                     log.timestamp = None
     
     return render_template('admin.html', total_users=total_users, total_cards=total_cards,
-                          total_reviews=total_reviews, activity_logs=activity_logs,
-                          users=users)
+                          total_reviews=total_reviews, activity_logs=activity_logs)
+
+@app.route('/admin/users')
+@login_required
+def admin_user_management():
+    if current_user.role != UserRole.ADMIN:
+        abort(403)
+    db_adapter = DatabaseAdapter()
+    if app.config['STORAGE_BACKEND'] == 'sqlite':
+        total_users = User.query.count()
+        users = User.query.all()
+    else:
+        users_response = db_adapter.supabase.client.table('users').select('*', count='exact').execute()
+        total_users = users_response.count if hasattr(users_response, 'count') else len(users_response.data)
+        users = [db_adapter._supabase_to_model(user_data, User) for user_data in users_response.data] if users_response.data else []
+        from datetime import datetime
+        for user in users:
+            if hasattr(user, 'date_joined') and isinstance(user.date_joined, str):
+                try:
+                    user.date_joined = datetime.fromisoformat(user.date_joined)
+                except Exception:
+                    user.date_joined = None
+    return render_template('admin_user_management.html', users=users, total_users=total_users)
 
 # Admin: edit user
 @app.route('/admin/edit_user/<int:user_id>', methods=['GET', 'POST'])

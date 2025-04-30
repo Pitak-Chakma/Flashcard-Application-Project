@@ -1,0 +1,62 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="container-fluid mb-4 py-4">
+    <div class="card border-0 rounded-4 shadow-sm">
+        <div class="card-body p-4">
+            <h1 class="display-6 fw-bold text-dark">User Management</h1>
+            <p class="lead text-muted mb-0">View, edit, or manage users</p>
+        </div>
+    </div>
+</div>
+
+<!-- User Management Table (copied from admin.html) -->
+<div class="row g-4 mb-4">
+    <div class="col-12">
+        <div class="card border-0 rounded-4 shadow-sm">
+            <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center p-4">
+                <h5 class="mb-0">User Management</h5>
+                <div class="d-flex align-items-center">
+                    <div class="input-group input-group-sm me-2">
+                        <input type="text" class="form-control" placeholder="Search users...">
+                        <button class="btn btn-outline-secondary" type="button">Search</button>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light">
+                            <tr>
+                                <th>ID</th>
+                                <th>Username</th>
+                                <th>Email</th>
+                                <th>Role</th>
+                                <th>Date Joined</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user in users %}
+                            <tr>
+                                <td>{{ user.id }}</td>
+                                <td>{{ user.username }}</td>
+                                <td>{{ user.email }}</td>
+                                <td>{{ user.role.value if user.role else user.role }}</td>
+                                <td>{{ user.date_joined.strftime('%b %d, %Y') if user.date_joined else '-' }}</td>
+                                <td>
+                                    <a href="{{ url_for('admin_edit_user', user_id=user.id) }}" class="btn btn-sm btn-outline-primary">Edit</a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="p-3 border-top d-flex justify-content-between align-items-center">
+                    <span class="text-muted small">Showing {{ users|length }} of {{ total_users }} users</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
