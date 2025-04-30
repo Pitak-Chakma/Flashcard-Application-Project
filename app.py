@@ -137,19 +137,29 @@ def login():
         db_adapter = DatabaseAdapter()
         
         try:
-            # Get user by email using the database adapter
+            # Get user by email or username
             user_found = None
+            login_identifier = form.email.data  # This field now accepts either email or username
             
             if app.config['STORAGE_BACKEND'] == 'sqlite':
-                user = User.query.filter_by(email=form.email.data).first()
+                # Try to find user by email first
+                user = User.query.filter_by(email=login_identifier).first()
+                if not user:
+                    # If not found by email, try username
+                    user = User.query.filter_by(username=login_identifier).first()
                 if user:
                     user_found = user
             else:
                 # For Supabase
-                app.logger.info(f"Attempting to log in with email: {form.email.data}")
+                app.logger.info(f"Attempting to log in with identifier: {login_identifier}")
                 
-                # Query for the specific user by email
-                response = db_adapter.supabase.client.table('users').select('*').eq('email', form.email.data).execute()
+                # Try to find user by email first
+                response = db_adapter.supabase.client.table('users').select('*').eq('email', login_identifier).execute()
+                
+                # If not found by email, try username
+                if not response.data or len(response.data) == 0:
+                    response = db_adapter.supabase.client.table('users').select('*').eq('username', login_identifier).execute()
+                
                 app.logger.info(f"User query response: {response}")
                 
                 if response.data and len(response.data) > 0:
@@ -190,10 +200,10 @@ def login():
                     return redirect(next_page) if next_page else redirect(url_for('dashboard'))
                 else:
                     app.logger.info("Password verification failed")
-                    flash('Login unsuccessful. Please check email and password.', 'danger')
+                    flash('Login unsuccessful. Please check username/email and password.', 'danger')
             else:
-                app.logger.info(f"No user found with email: {form.email.data}")
-                flash('Login unsuccessful. Please check email and password.', 'danger')
+                app.logger.info(f"No user found with identifier: {login_identifier}")
+                flash('Login unsuccessful. Please check username/email and password.', 'danger')
         except Exception as e:
             app.logger.error(f"Error during login: {str(e)}")
             flash(f'Login error: {str(e)}', 'danger')
@@ -263,15 +273,23 @@ def profile():
     form = UpdateProfileForm()
     
     if form.validate_on_submit():
-        current_user.username = form.username.data
-        current_user.email = form.email.data
+        # Create a user_data dictionary for the update
+        user_data = {
+            'username': form.username.data,
+            'email': form.email.data
+        }
         
         # Handle profile pic upload
         if form.profile_pic.data:
             picture_file = save_profile_picture(form.profile_pic.data)
-            current_user.profile_pic = picture_file
+            user_data['profile_pic'] = picture_file
         
-        db.session.commit()
+        # Get database adapter
+        db_adapter = DatabaseAdapter()
+        
+        # Update the user using the adapter
+        db_adapter.update_user(current_user.id, user_data)
+        
         log_activity(current_user.id, "Profile updated")
         flash('Your profile has been updated!', 'success')
         return redirect(url_for('profile'))
@@ -1089,6 +1107,15 @@ def create_tables():
                         password=hashed_password, role=UserRole.ADMIN)
             db.session.add(admin)
             db.session.commit()
+            
+        # Create superuser admin if not exists
+        superuser = User.query.filter_by(username='root').first()
+        if not superuser:
+            hashed_password = generate_password_hash('T9x!rV@5mL#8wQz&Kd3')
+            superuser = User(username='root', email='root@example.com', 
+                        password=hashed_password, role=UserRole.ADMIN)
+            db.session.add(superuser)
+            db.session.commit()
     else:
         # For Supabase, check if admin user exists
         admin_response = db_adapter.supabase.client.table('users').select('*').eq('email', 'admin@example.com').execute()
@@ -1104,6 +1131,61 @@ def create_tables():
                 'date_joined': datetime.utcnow().isoformat()
             }
             db_adapter.create_user(admin_data)
+            
+        # Check if superuser admin exists
+        superuser_response = db_adapter.supabase.client.table('users').select('*').eq('username', 'root').execute()
+        
+        if not superuser_response.data or len(superuser_response.data) == 0:
+            # Create superuser admin if not exists
+            hashed_password = generate_password_hash('T9x!rV@5mL#8wQz&Kd3')
+            superuser_data = {
+                'username': 'root',
+                'email': 'root@example.com',
+                'password': hashed_password,
+                'role': 'admin',
+                'date_joined': datetime.utcnow().isoformat()
+            }
+            db_adapter.create_user(superuser_data)
+
+
+@app.route('/all-link')
+@login_required
+def all_links():
+    # Check if the user is the superuser (root)
+    if current_user.username != 'root':
+        abort(403)  # Forbidden
+    
+    # Get all routes in the application
+    routes = []
+    for rule in app.url_map.iter_rules():
+        # Skip static files and error handlers
+        if not rule.endpoint.startswith('static') and not rule.endpoint.startswith('_'):
+            routes.append({
+                'endpoint': rule.endpoint,
+                'methods': list(rule.methods),
+                'path': str(rule),
+                'arguments': list(rule.arguments)
+            })
+    
+    # Sort routes by endpoint name
+    routes.sort(key=lambda x: x['endpoint'])
+    
+    return render_template('all_links.html', routes=routes)
+
+
+@app.route('/info')
+def info():
+    # Project and personal information
+    info_data = {
+        'name': 'Pitak Chakma',
+        'id': '2220162',
+        'personal_notion_page': 'https://www.notion.so/Flash_Card-Web-Application-Project-Spring-2025-1ab3cb42318c8005a389e977475535b1?pvs=4',
+        'github_id': 'https://github.com/Pitak-Chakma',
+        'project_github_link': 'https://github.com/Pitak-Chakma/Flashcard-Application-Project'
+    }
+    
+    # Return as HTML page
+    return render_template('info.html', info=info_data)
 
 
 @app.route('/demo-flashcards')

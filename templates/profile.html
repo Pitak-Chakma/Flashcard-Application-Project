@@ -220,14 +220,19 @@
                     <h4 class="profile-header-title">Profile Details</h4>
                 </div>
                 <div class="card-body text-center p-4">
-                    <img src="{{ url_for('static', filename='uploads/profile_pics/' + current_user.profile_pic) }}" 
+                    {% set profile_pic = current_user.profile_pic if current_user.profile_pic else 'default_profile.png' %}
+                    <img src="{{ url_for('static', filename='uploads/profile_pics/' + profile_pic) }}" 
                          alt="Profile Picture" class="profile-avatar mb-3">
                     <h3 class="profile-name">{{ current_user.username }}</h3>
                     <p class="profile-email">{{ current_user.email }}</p>
                     <div class="profile-badge">{{ current_user.role.value }}</div>
                     <p class="profile-date">
                         <i class="far fa-calendar-alt me-2"></i>
-                        Member since {{ current_user.date_joined.strftime('%B %d, %Y') }}
+                        {% if current_user.date_joined %}
+                            Member since {{ current_user.date_joined.strftime('%B %d, %Y') }}
+                        {% else %}
+                            Member
+                        {% endif %}
                     </p>
                 </div>
             </div>

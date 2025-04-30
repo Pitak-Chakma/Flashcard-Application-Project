@@ -1,0 +1,145 @@
+{% extends "layout.html" %}
+
+{% block extra_css %}
+<style>
+    .info-container {
+        padding: 3rem 0;
+    }
+    
+    .info-card {
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.06);
+        border: none;
+        transition: transform 0.3s, box-shadow 0.3s;
+    }
+    
+    .info-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+    }
+    
+    .info-header {
+        padding: 1.5rem;
+        background: linear-gradient(135deg, #4361ee 0%, #4cc9f0 100%);
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .info-header::before {
+        content: "";
+        position: absolute;
+        width: 150px;
+        height: 150px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+        top: -75px;
+        right: -40px;
+    }
+    
+    .info-header::after {
+        content: "";
+        position: absolute;
+        width: 100px;
+        height: 100px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+        bottom: -30px;
+        left: -30px;
+    }
+    
+    .info-header-title {
+        font-weight: 700;
+        font-size: 1.5rem;
+        margin-bottom: 0;
+        position: relative;
+        z-index: 1;
+    }
+    
+    .info-item {
+        padding: 1.25rem 0;
+        border-bottom: 1px solid #f1f5f9;
+    }
+    
+    .info-item:last-child {
+        border-bottom: none;
+    }
+    
+    .info-label {
+        font-weight: 600;
+        color: #64748b;
+        margin-bottom: 0.5rem;
+    }
+    
+    .info-value {
+        font-size: 1.1rem;
+    }
+    
+    .info-link {
+        color: #4361ee;
+        transition: color 0.2s;
+        word-break: break-all;
+    }
+    
+    .info-link:hover {
+        color: #4cc9f0;
+        text-decoration: underline;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="info-container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="info-card">
+                <div class="info-header">
+                    <h4 class="info-header-title">Project Information</h4>
+                </div>
+                <div class="card-body p-4">
+                    <div class="info-item">
+                        <div class="info-label">Name</div>
+                        <div class="info-value">{{ info.name }}</div>
+                    </div>
+                    
+                    <div class="info-item">
+                        <div class="info-label">ID</div>
+                        <div class="info-value">{{ info.id }}</div>
+                    </div>
+                    
+                    <div class="info-item">
+                        <div class="info-label">Personal Notion Page</div>
+                        <div class="info-value">
+                            <a href="{{ info.personal_notion_page }}" target="_blank" class="info-link">
+                                {{ info.personal_notion_page }}
+                                <i class="fas fa-external-link-alt ms-2"></i>
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <div class="info-item">
+                        <div class="info-label">GitHub Profile</div>
+                        <div class="info-value">
+                            <a href="{{ info.github_id }}" target="_blank" class="info-link">
+                                {{ info.github_id }}
+                                <i class="fas fa-external-link-alt ms-2"></i>
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <div class="info-item">
+                        <div class="info-label">Project GitHub Repository</div>
+                        <div class="info-value">
+                            <a href="{{ info.project_github_link }}" target="_blank" class="info-link">
+                                {{ info.project_github_link }}
+                                <i class="fas fa-external-link-alt ms-2"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
