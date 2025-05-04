@@ -1146,6 +1146,35 @@ def admin_edit_user(user_id):
     
     return render_template('admin_edit_user.html', user=user, roles=UserRole)
 
+# Admin: delete user
+@app.route('/admin/delete_user/<int:user_id>', methods=['POST'])
+@login_required
+def admin_delete_user(user_id):
+    # Check if user is admin
+    if current_user.role != UserRole.ADMIN:
+        abort(403)  # Forbidden
+    
+    # Get database adapter
+    db_adapter = DatabaseAdapter()
+    
+    # Get the user using the adapter
+    user = db_adapter.get_user(user_id)
+    if not user:
+        abort(404)
+    
+    # Don't allow deleting self
+    if user.id == current_user.id:
+        flash('You cannot delete your own admin account!', 'danger')
+        return redirect(url_for('admin_dashboard'))
+    
+    # Delete user using the adapter
+    db_adapter.delete_user(user_id)
+    
+    # Log the activity
+    log_activity(current_user.id, "Admin deleted user", f"User ID: {user_id}")
+    flash('User has been deleted!', 'success')
+    return redirect(url_for('admin_dashboard'))
+
 # Initialize database
 @app.before_first_request
 def create_tables():
