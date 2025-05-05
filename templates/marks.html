@@ -54,10 +54,26 @@ const rows = tbody.selectAll("tr")
 
 // Add cells
 rows.selectAll("td")
-    .data(d => [d.mark, d.justification, d.route])
+    .data((d, i) => [
+        { value: d.mark, isRoute: false },
+        { value: d.justification, isRoute: false },
+        { value: d.route, isRoute: true }
+    ])
     .enter()
     .append("td")
-    .text(d => d);
+    .each(function(d) {
+        if (d.isRoute) {
+            d3.select(this)
+                .append("a")
+                .attr("href", d.value)
+                .text(d.value)
+                .style("color", "#007bff")
+                .style("text-decoration", "none")
+                .style("cursor", "pointer");
+        } else {
+            d3.select(this).text(d.value);
+        }
+    });
 
 // Add CSS styles
 d3.select("head").append("style").text(`
