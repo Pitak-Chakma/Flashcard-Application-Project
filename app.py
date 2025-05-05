@@ -1411,6 +1411,11 @@ def api_review_activity():
     return jsonify({'labels': list(day_counts.keys()), 'data': list(day_counts.values())})
 
 
+# Marks route
+@app.route('/marks')
+def marks():
+    return render_template('marks.html')
+
 # Application entry point - using port 8001 to avoid conflicts
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8000, debug=True)

@@ -1,0 +1,83 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="content-section">
+    <h2>Implementation Marks</h2>
+    <div id="marks-table"></div>
+</div>
+
+<!-- Include D3.js -->
+<script src="https://d3js.org/d3.v7.min.js"></script>
+
+<script>
+// Data for the table
+const tableData = [
+    {
+        mark: 9,
+        justification: "Advanced spaced repetition algorithm implementation with SM-2",
+        route: "/study"
+    },
+    {
+        mark: 8,
+        justification: "Comprehensive achievement system with dynamic tracking",
+        route: "/dashboard"
+    },
+    {
+        mark: 7,
+        justification: "Multi-tag support for flashcards with filtering",
+        route: "/view_cards"
+    }
+];
+
+// Set up the table using D3.js
+const table = d3.select("#marks-table")
+    .append("table")
+    .attr("class", "table table-striped");
+
+// Add table header
+const thead = table.append("thead")
+    .append("tr");
+
+thead.selectAll("th")
+    .data(["Mark (/10)", "Justification", "Internal Route"])
+    .enter()
+    .append("th")
+    .text(d => d);
+
+// Add table body
+const tbody = table.append("tbody");
+
+// Add rows
+const rows = tbody.selectAll("tr")
+    .data(tableData)
+    .enter()
+    .append("tr");
+
+// Add cells
+rows.selectAll("td")
+    .data(d => [d.mark, d.justification, d.route])
+    .enter()
+    .append("td")
+    .text(d => d);
+
+// Add CSS styles
+d3.select("head").append("style").text(`
+    #marks-table table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+    }
+    #marks-table th, #marks-table td {
+        padding: 12px;
+        text-align: left;
+        border-bottom: 1px solid #ddd;
+    }
+    #marks-table th {
+        background-color: #f8f9fa;
+        font-weight: bold;
+    }
+    #marks-table tr:hover {
+        background-color: #f5f5f5;
+    }
+`);
+</script>
+{% endblock content %}
