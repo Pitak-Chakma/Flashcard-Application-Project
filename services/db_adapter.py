@@ -75,6 +75,41 @@ class DatabaseAdapter:
                     setattr(user, key, value)
                 db.session.commit()
                 return user
+                
+    def delete_user(self, user_id):
+        """Delete a user and all associated data"""
+        if self.backend == 'supabase':
+            # First delete all related data for the user
+            # Delete user's card reviews
+            self.supabase.client.table('card_reviews').delete().eq('user_id', user_id).execute()
+            
+            # Get user's cards to delete card_tags associations
+            cards_response = self.supabase.client.table('cards').select('id').eq('user_id', user_id).execute()
+            if cards_response.data:
+                card_ids = [card['id'] for card in cards_response.data]
+                # Delete card_tags associations
+                for card_id in card_ids:
+                    self.supabase.client.table('card_tags').delete().eq('card_id', card_id).execute()
+                # Delete cards
+                self.supabase.client.table('cards').delete().eq('user_id', user_id).execute()
+            
+            # Delete user achievements
+            self.supabase.client.table('user_achievements').delete().eq('user_id', user_id).execute()
+            
+            # Delete activity logs
+            self.supabase.client.table('activity_logs').delete().eq('user_id', user_id).execute()
+            
+            # Finally delete the user
+            return self.supabase.delete_user(user_id)
+        else:
+            # For SQLite, use cascade delete through SQLAlchemy
+            user = User.query.get(user_id)
+            if user:
+                # Delete the user (cascade should handle related records)
+                db.session.delete(user)
+                db.session.commit()
+                return True
+            return False
     
     # Card operations
     

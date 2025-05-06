@@ -266,19 +266,42 @@ def dashboard():
     # Get user stats
     if app.config['STORAGE_BACKEND'] == 'sqlite':
         user_cards = Card.query.filter_by(user_id=current_user.id).count()
-        reviews_today = CardReview.query.filter(
-            CardReview.user_id == current_user.id,
-            CardReview.next_review <= datetime.utcnow()
+        # Get cards that either have due reviews or no reviews at all
+        reviews_today = db.session.query(Card).outerjoin(CardReview).filter(
+            Card.user_id == current_user.id,
+            db.or_(
+                CardReview.next_review <= datetime.utcnow(),
+                CardReview.id == None
+            )
         ).count()
         achievements = UserAchievement.query.filter_by(user_id=current_user.id).all()
     else:
         # Supabase: count cards
         response = db_adapter.supabase.client.table('cards').select('id', count='exact').eq('user_id', current_user.id).execute()
         user_cards = response.count if hasattr(response, 'count') else 0
-        # Count reviews due today
+        
+        # Count cards that either have due reviews or no reviews at all
         now_iso = datetime.utcnow().isoformat()
-        review_response = db_adapter.supabase.client.table('card_reviews').select('id', count='exact').eq('user_id', current_user.id).lte('next_review', now_iso).execute()
-        reviews_today = review_response.count if hasattr(review_response, 'count') else 0
+        # First, get all cards for the user
+        cards_response = db_adapter.supabase.client.table('cards').select('id').eq('user_id', current_user.id).execute()
+        card_ids = [card['id'] for card in cards_response.data] if cards_response.data else []
+        
+        # Then get all reviews for these cards
+        if card_ids:
+            review_response = db_adapter.supabase.client.table('card_reviews')\
+                .select('card_id')\
+                .in_('card_id', card_ids)\
+                .gt('next_review', now_iso)\
+                .execute()
+            
+            # Cards with future reviews (not due)
+            cards_with_future_reviews = set(review['card_id'] for review in review_response.data) if review_response.data else set()
+            
+            # Total cards minus cards with future reviews equals cards due for review
+            reviews_today = len(card_ids) - len(cards_with_future_reviews)
+        else:
+            reviews_today = 0
+            
         # Get achievements
         ach_response = db_adapter.supabase.client.table('user_achievements').select('*').eq('user_id', current_user.id).execute()
         achievements = [db_adapter._supabase_to_model(a, UserAchievement) for a in ach_response.data] if ach_response.data else []
@@ -688,17 +711,56 @@ def delete_card(card_id):
 @app.route('/study')
 @login_required
 def study():
-    # Count cards due for review
-    due_count = CardReview.query.filter(
-        CardReview.user_id == current_user.id,
-        CardReview.next_review <= datetime.utcnow()
-    ).count()
+    # Get database adapter
+    db_adapter = DatabaseAdapter()
     
-    # Count cards without reviews (new cards)
-    new_count = Card.query.filter(
-        Card.user_id == current_user.id,
-        ~Card.id.in_(db.session.query(CardReview.card_id).filter_by(user_id=current_user.id))
-    ).count()
+    if app.config['STORAGE_BACKEND'] == 'sqlite':
+        # Count cards due for review
+        due_count = CardReview.query.filter(
+            CardReview.user_id == current_user.id,
+            CardReview.next_review <= datetime.utcnow()
+        ).count()
+        
+        # Count cards without reviews (new cards)
+        new_count = Card.query.filter(
+            Card.user_id == current_user.id,
+            ~Card.id.in_(db.session.query(CardReview.card_id).filter_by(user_id=current_user.id))
+        ).count()
+    else:
+        # Supabase: Use the same logic as in dashboard
+        now_iso = datetime.utcnow().isoformat()
+        # First, get all cards for the user
+        cards_response = db_adapter.supabase.client.table('cards').select('id').eq('user_id', current_user.id).execute()
+        card_ids = [card['id'] for card in cards_response.data] if cards_response.data else []
+        
+        # Then get all reviews for these cards
+        if card_ids:
+            review_response = db_adapter.supabase.client.table('card_reviews')\
+                .select('card_id')\
+                .in_('card_id', card_ids)\
+                .gt('next_review', now_iso)\
+                .execute()
+            
+            # Cards with future reviews (not due)
+            cards_with_future_reviews = set(review['card_id'] for review in review_response.data) if review_response.data else set()
+            
+            # Total cards minus cards with future reviews equals cards due for review
+            due_count = len(card_ids) - len(cards_with_future_reviews)
+            
+            # Count cards without reviews (new cards)
+            review_response = db_adapter.supabase.client.table('card_reviews')\
+                .select('card_id')\
+                .in_('card_id', card_ids)\
+                .execute()
+            
+            # Cards with any reviews
+            cards_with_reviews = set(review['card_id'] for review in review_response.data) if review_response.data else set()
+            
+            # New cards are those without any reviews
+            new_count = len([card_id for card_id in card_ids if card_id not in cards_with_reviews])
+        else:
+            due_count = 0
+            new_count = 0
     
     # Get all tags for filtering
     tags = Tag.query.all()
@@ -708,10 +770,13 @@ def study():
         current_user.id
     )
     
+    # Total cards due is the sum of due reviews and new cards
+    total_cards_due = due_count + new_count
+    
     return render_template('study.html', 
                           due_count=due_count, 
                           new_count=new_count,
-                          cards_due=due_count,
+                          cards_due=total_cards_due,
                           tags=tags,
                           efficiency=efficiency)
 
@@ -729,98 +794,99 @@ def get_next_card():
         tags=tag_ids if tag_ids else None
     )
     
-    if not reviews:
-        # Check if there are any cards without reviews yet
-        # For SQLite, we'll use the existing query
-        # For Supabase, we'll use a custom query through the adapter
+    # If we have a due review, use it
+    if reviews:
+        # Get the first review (most urgent)
+        review = reviews[0]
+        card = db_adapter.get_card(review.card_id)
+        
+        # Get tags for the card
         if app.config['STORAGE_BACKEND'] == 'sqlite':
-            cards_without_reviews = Card.query.filter(
-                Card.user_id == current_user.id,
-                ~Card.id.in_(db.session.query(CardReview.card_id).filter_by(user_id=current_user.id))
+            tags = [tag.name for tag in card.tags]
+        else:
+            # For Supabase, we need to get tags separately
+            tag_response = db_adapter.supabase.client.table('card_tags')\
+                .select('tags(name)')\
+                .eq('card_id', card.id)\
+                .execute()
+            
+            tags = [item['tags']['name'] for item in tag_response.data] if tag_response.data else []
+        
+        return jsonify({
+            'status': 'success',
+            'card_id': card.id,
+            'question': card.question,
+            'answer': card.answer,
+            'tags': tags,
+            'review_id': review.id,
+            'new_card': False,
+            'current_interval': review.interval,
+            'ease_factor': round(review.ease_factor, 2)
+        })
+    
+    # If no due reviews, check for new cards (cards without reviews)
+    if app.config['STORAGE_BACKEND'] == 'sqlite':
+        cards_without_reviews = Card.query.filter(
+            Card.user_id == current_user.id,
+            ~Card.id.in_(db.session.query(CardReview.card_id).filter_by(user_id=current_user.id))
+        )
+        
+        # Apply tag filter if provided
+        if tag_ids:
+            cards_without_reviews = cards_without_reviews.filter(
+                Card.tags.any(Tag.id.in_(tag_ids))
             )
             
-            # Apply tag filter if provided
-            if tag_ids:
-                cards_without_reviews = cards_without_reviews.filter(
-                    Card.tags.any(Tag.id.in_(tag_ids))
-                )
-                
-            card = cards_without_reviews.first()
-        else:
-            # For Supabase, we'll use a custom query through the adapter
-            # This would need to be implemented in the adapter
-            # For now, we'll just get all user cards and filter in Python
-            all_user_cards = db_adapter.get_user_cards(current_user.id, tag_id=tag_ids[0] if tag_ids else None)
-            all_reviews = db_adapter.supabase.client.table('card_reviews').select('card_id').eq('user_id', current_user.id).execute()
-            reviewed_card_ids = [r['card_id'] for r in all_reviews.data] if all_reviews.data else []
-            
-            # Filter cards that don't have reviews
-            cards_without_reviews = [c for c in all_user_cards if c.id not in reviewed_card_ids]
-            card = cards_without_reviews[0] if cards_without_reviews else None
-        
-        if card:
-            # Create a new review for this card
-            review_data = {
-                'card_id': card.id,
-                'user_id': current_user.id,
-                'ease_factor': SpacedRepetition.DEFAULT_EASE_FACTOR,
-                'interval': 1,
-                'next_review': datetime.utcnow()
-            }
-            
-            review = db_adapter.create_review(review_data)
-            
-            # Get tags for the card
-            if app.config['STORAGE_BACKEND'] == 'sqlite':
-                tags = [tag.name for tag in card.tags]
-            else:
-                # For Supabase, we need to get tags separately
-                tag_response = db_adapter.supabase.client.table('card_tags')\
-                    .select('tags(name)')\
-                    .eq('card_id', card.id)\
-                    .execute()
-                
-                tags = [item['tags']['name'] for item in tag_response.data] if tag_response.data else []
-            
-            return jsonify({
-                'status': 'success',
-                'card_id': card.id,
-                'question': card.question,
-                'answer': card.answer,
-                'tags': tags,
-                'review_id': review.id,
-                'new_card': True
-            })
-        else:
-            return jsonify({'status': 'complete'})
-    
-    # Get the first review (most urgent)
-    review = reviews[0]
-    card = db_adapter.get_card(review.card_id)
-    
-    # Get tags for the card
-    if app.config['STORAGE_BACKEND'] == 'sqlite':
-        tags = [tag.name for tag in card.tags]
+        card = cards_without_reviews.first()
     else:
-        # For Supabase, we need to get tags separately
-        tag_response = db_adapter.supabase.client.table('card_tags')\
-            .select('tags(name)')\
-            .eq('card_id', card.id)\
-            .execute()
+        # For Supabase, get all user cards and filter in Python
+        all_user_cards = db_adapter.get_user_cards(current_user.id, tag_id=tag_ids[0] if tag_ids else None)
+        if not all_user_cards:
+            return jsonify({'status': 'complete'})
+            
+        all_reviews = db_adapter.supabase.client.table('card_reviews').select('card_id').eq('user_id', current_user.id).execute()
+        reviewed_card_ids = [r['card_id'] for r in all_reviews.data] if all_reviews.data else []
         
-        tags = [item['tags']['name'] for item in tag_response.data] if tag_response.data else []
+        # Filter cards that don't have reviews
+        cards_without_reviews = [c for c in all_user_cards if c.id not in reviewed_card_ids]
+        card = cards_without_reviews[0] if cards_without_reviews else None
     
-    return jsonify({
-        'status': 'success',
-        'card_id': card.id,
-        'question': card.question,
-        'answer': card.answer,
-        'tags': tags,
-        'review_id': review.id,
-        'new_card': False,
-        'current_interval': review.interval,
-        'ease_factor': round(review.ease_factor, 2)
-    })
+    if card:
+        # Create a new review for this card
+        review_data = {
+            'card_id': card.id,
+            'user_id': current_user.id,
+            'ease_factor': SpacedRepetition.DEFAULT_EASE_FACTOR,
+            'interval': 1,
+            'next_review': datetime.utcnow()
+        }
+        
+        review = db_adapter.create_review(review_data)
+        
+        # Get tags for the card
+        if app.config['STORAGE_BACKEND'] == 'sqlite':
+            tags = [tag.name for tag in card.tags]
+        else:
+            # For Supabase, we need to get tags separately
+            tag_response = db_adapter.supabase.client.table('card_tags')\
+                .select('tags(name)')\
+                .eq('card_id', card.id)\
+                .execute()
+            
+            tags = [item['tags']['name'] for item in tag_response.data] if tag_response.data else []
+        
+        return jsonify({
+            'status': 'success',
+            'card_id': card.id,
+            'question': card.question,
+            'answer': card.answer,
+            'tags': tags,
+            'review_id': review.id,
+            'new_card': True
+        })
+    
+    # If no cards are due and no new cards, return complete
+    return jsonify({'status': 'complete'})
 
 # API to update card review based on difficulty
 @app.route('/api/update_review/<int:review_id>', methods=['POST'])
