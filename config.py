@@ -23,3 +23,9 @@ class Config:
     
     # Storage backend ('sqlite' or 'supabase')
     STORAGE_BACKEND = os.getenv('STORAGE_BACKEND', 'supabase')
+    
+    # Session configuration
+    SESSION_COOKIE_SECURE = os.getenv('FLASK_ENV') == 'production'
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = 'Lax'
+    PERMANENT_SESSION_LIFETIME = 3600  # 1 hour session lifetime

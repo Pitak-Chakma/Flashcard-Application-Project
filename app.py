@@ -17,6 +17,12 @@ from services.db_adapter import DatabaseAdapter
 app = Flask(__name__)
 app.config.from_object(Config)
 
+# Ensure sessions are secure
+app.config['SESSION_COOKIE_SECURE'] = app.config.get('SESSION_COOKIE_SECURE', True)
+app.config['SESSION_COOKIE_HTTPONLY'] = app.config.get('SESSION_COOKIE_HTTPONLY', True)
+app.config['SESSION_COOKIE_SAMESITE'] = app.config.get('SESSION_COOKIE_SAMESITE', 'Lax')
+app.config['PERMANENT_SESSION_LIFETIME'] = app.config.get('PERMANENT_SESSION_LIFETIME', 3600)
+
 # Set up the database
 db.init_app(app)
 
