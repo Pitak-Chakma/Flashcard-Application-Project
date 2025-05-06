@@ -763,7 +763,7 @@ def study():
             new_count = 0
     
     # Get all tags for filtering
-    tags = Tag.query.all()
+    tags = db_adapter.get_tags()
     
     # Get learning efficiency for the user
     efficiency = SpacedRepetition.get_learning_efficiency(
